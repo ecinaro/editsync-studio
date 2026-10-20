@@ -1,0 +1,527 @@
+<!doctype html>
+<html lang="tr"><head><meta charset="utf-8"><title>EditSync Stüdyo</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+:root{--bg:#0d0c0c;--panel:#161414;--line:#2a2626;--ink:#f2efec;--sub:#9b9393;--red:#ff2a2a}
+*{box-sizing:border-box}html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:14px/1.4 system-ui,-apple-system,Segoe UI,sans-serif}
+.app{display:grid;grid-template-columns:auto minmax(300px,1fr);grid-template-rows:minmax(0,1fr) auto;gap:12px 20px;height:100%;padding:16px}
+.left{display:flex;flex-direction:column;align-items:center;gap:10px;min-height:0}
+.stage{position:relative;height:calc(100vh - 360px);min-height:160px;aspect-ratio:9/16;background:#000;overflow:hidden;border-radius:14px;box-shadow:0 0 0 1px var(--line)}
+.vwrap{position:absolute;left:0;top:0;width:100%;height:100%;overflow:hidden}
+.vwrap video{position:absolute;left:0;top:0;width:100%;height:100%;object-fit:cover;display:block}
+.vwrap canvas{position:absolute;left:0;top:50%;width:100%;height:50%;display:none}
+.stage iframe{position:absolute;left:0;top:0;border:0;transform-origin:0 0;pointer-events:none;background:transparent;visibility:hidden}
+.safe{position:absolute;inset:0;pointer-events:none;display:none;z-index:100}
+.safe div{position:absolute;border:1px dashed rgba(255,42,42,.7)}
+.bar{display:flex;align-items:center;gap:8px;width:100%;max-width:600px;flex-wrap:wrap}.bar label{white-space:nowrap}
+button,select{background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font:inherit;cursor:pointer}
+button:hover{border-color:#4a4444}
+input[type=range]{flex:1;accent-color:var(--red)}
+.time{font-variant-numeric:tabular-nums;min-width:120px;text-align:center;color:var(--sub)}
+.right{display:grid;grid-template-rows:auto 1fr auto;gap:14px;min-height:0}
+h1{font-size:18px;margin:0}h1 b{color:var(--red)}
+.list{overflow:auto;border:1px solid var(--line);border-radius:12px}
+.seg{display:grid;grid-template-columns:52px 1fr auto;gap:10px;padding:10px 12px;border-bottom:1px solid var(--line);cursor:pointer;align-items:center}
+.seg:hover{background:#1c1919}.seg.on{background:#241b1b;box-shadow:inset 3px 0 0 var(--red)}
+.seg .id{font-weight:700}.seg .tm{color:var(--sub);font-variant-numeric:tabular-nums;font-size:12px}
+.tag{font-size:11px;padding:2px 8px;border-radius:99px;border:1px solid var(--line);color:var(--sub);white-space:nowrap}
+.notes{border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px}
+textarea{width:100%;min-height:70px;background:#0f0e0e;color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px;font:inherit;resize:vertical}
+.nlist{max-height:180px;overflow:auto;display:flex;flex-direction:column;gap:6px}
+.note{padding:6px 8px;border-radius:8px;background:#1a1717;font-size:13px}.note .m{color:var(--sub);font-size:11px}.note.done{opacity:.45;text-decoration:line-through}
+.hint{color:var(--sub);font-size:12px}
+.flash{color:#7CFF9A;font-size:12px;min-height:16px}
+/* tabs + panes (notes / edit / subtitles) */
+.right{grid-template-rows:auto minmax(80px,24vh) auto minmax(0,1fr);overflow:hidden}
+.panes{min-height:0;display:flex;flex-direction:column}.panes>.pane{max-height:100%;min-height:0}
+.tabs{display:flex;gap:6px}.tabs button.on{border-color:var(--red);background:#241b1b}
+.pane{border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:9px;max-height:58vh;overflow:auto}
+.pane[hidden]{display:none}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.fl{display:grid;grid-template-columns:78px 1fr;gap:8px;align-items:center;color:var(--sub);font-size:12px}
+input[type=text]{width:100%;background:#0f0e0e;color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:6px 8px;font:inherit}
+input[type=text]:disabled{opacity:.45}
+input[type=color]{width:34px;height:28px;padding:0;border:1px solid var(--line);border-radius:6px;background:none;cursor:pointer}
+.sw{width:26px;height:26px;border-radius:50%;border:2px solid var(--line);padding:0;cursor:pointer}.sw.on{border-color:var(--red);box-shadow:0 0 0 2px #0d0c0c inset}
+.btns{display:flex;gap:6px;flex-wrap:wrap}.btns button.on{border-color:var(--red);background:#241b1b}
+.drop{border:1.5px dashed #4a4444;border-radius:10px;padding:14px;text-align:center;color:var(--sub);cursor:pointer}.drop.over{border-color:var(--red);color:var(--ink)}
+.drop[hidden],.insp[hidden],.fl[hidden]{display:none}.insp{display:flex;flex-direction:column;gap:9px}
+.edl{position:absolute;inset:0;z-index:101;pointer-events:none}.edl.on{pointer-events:auto;cursor:crosshair;box-shadow:inset 0 0 0 2px rgba(255,42,42,.55);border-radius:14px}
+.edbox{position:absolute;border:1.5px solid #ff2a2a;pointer-events:none;display:none}.edbox.hov{border:1px dashed rgba(255,255,255,.7)}
+.edh{position:absolute;right:-7px;bottom:-7px;width:13px;height:13px;background:#ff2a2a;border:2px solid #fff;border-radius:3px;pointer-events:auto;cursor:nwse-resize}
+.phone{position:absolute;inset:0;z-index:98;pointer-events:none;display:none}.phone svg{width:100%;height:100%;display:block;filter:drop-shadow(0 1px 3px rgba(0,0,0,.35))}
+/* subtitles */
+@font-face{font-family:'EdOswald';src:url(/clips/assets/oswald.ttf) format('truetype');font-weight:100 900}
+@font-face{font-family:'EdSerifI';src:url(/clips/assets/sourceserif4-italic.ttf) format('truetype');font-style:italic;font-weight:100 900}
+.subs{position:absolute;left:50%;top:70%;width:max-content;max-width:88%;z-index:91;pointer-events:auto;cursor:grab;touch-action:none;user-select:none;display:none;text-align:center;transform:translate(-50%,-50%)}.subs.drag{cursor:grabbing;outline:1px dashed rgba(255,42,42,.8);outline-offset:6px}
+@font-face{font-family:'EdSerif';src:url(/clips/assets/sourceserif4.ttf) format('truetype');font-style:normal;font-weight:100 900}
+.cap{display:inline;line-height:1.08}.cap .w{display:inline-block;margin:0 .12em;transition:color .06s}
+/* every preset reads the colour settings: --st-text, --st-acc (emphasis), --st-line (stroke) / --st-sh (shadow), --st-boxbg / --st-boxa (box)
+   unset = the preset's own default (fallback values below) */
+.p-bold{font-family:'EdOswald',sans-serif;font-weight:700;text-transform:uppercase;color:var(--st-text,#fff);-webkit-text-stroke:.09em var(--st-line,#000);paint-order:stroke fill;letter-spacing:.01em}
+.p-red{font-family:'EdOswald',sans-serif;font-weight:700;text-transform:uppercase;color:var(--st-text,#fff);text-shadow:0 .04em .18em var(--st-sh,rgba(0,0,0,.55))}.p-red .w.on{color:var(--st-acc,#FF0000)}
+.p-serif{font-family:'EdSerifI',serif;font-style:italic;font-weight:500;color:var(--st-text,#fff);letter-spacing:-.01em;text-shadow:0 .03em .25em var(--st-sh,rgba(0,0,0,.6))}
+.p-pill{background:var(--st-boxbg,rgba(255,255,255,var(--st-boxa,1)));color:var(--st-text,#0B0B0B);font-family:'EdOswald',sans-serif;font-weight:600;padding:.1em .35em;border-radius:.3em;line-height:1.42;-webkit-box-decoration-break:clone;box-decoration-break:clone;box-shadow:0 .05em .3em rgba(0,0,0,.25)}
+.p-pill .w{margin:0 .08em}
+/* karaoke: every word solid + outlined (readable on white too); the sung part fills with the emphasis colour, the active word sweeps */
+.p-karaoke{font-family:'EdOswald',sans-serif;font-weight:700;text-transform:uppercase;color:var(--st-text,#fff);-webkit-text-stroke:.075em var(--st-line,#0B0B0B);paint-order:stroke fill;text-shadow:0 .05em .3em var(--st-sh,rgba(0,0,0,.35))}
+.p-karaoke .w.past{color:var(--st-acc,#FF0000)}.p-karaoke .w.on{color:transparent;-webkit-text-stroke:.04em var(--st-line,#0B0B0B);background:linear-gradient(90deg,var(--st-acc,#FF0000) var(--k,0%),var(--st-text,#fff) var(--k,0%));-webkit-background-clip:text;background-clip:text}
+.p-mini{font-family:system-ui,-apple-system,Segoe UI,sans-serif;font-weight:600;color:var(--st-text,#fff);font-size:.55em!important;text-shadow:0 1px 6px var(--st-sh,rgba(0,0,0,.7))}
+/* Source Serif 4 family */
+.p-soft,.p-sred,.p-mix,.p-under,.p-dpill,.p-edit,.p-pop,.p-dot,.p-blur{font-family:'EdSerifI',serif;font-style:italic;font-weight:500;color:var(--st-text,#fff);letter-spacing:-.015em}
+.p-soft{font-size:1.2em;text-shadow:0 .04em .55em var(--st-sh,rgba(0,0,0,.55)),0 0 .15em var(--st-sh,rgba(0,0,0,.3))}
+.p-sred,.p-under,.p-pop,.p-dot,.p-blur,.p-mix{font-size:1.08em;text-shadow:0 .03em .35em var(--st-sh,rgba(0,0,0,.55))}
+.p-sred .w.on{color:var(--st-acc,#FF0000)}
+.p-mix{text-transform:lowercase}.p-mix .w.em{font-family:'EdOswald',sans-serif;font-style:normal;font-weight:700;text-transform:uppercase;letter-spacing:0;font-size:.92em;color:var(--st-acc,#FF0000)}
+.p-under .w.on{text-decoration:underline;text-decoration-color:var(--st-acc,#FF0000);text-decoration-thickness:.075em;text-underline-offset:.16em;text-decoration-skip-ink:none}
+.p-dpill{background:var(--st-boxbg,rgba(11,11,11,var(--st-boxa,.58)));padding:.1em .45em .16em;border-radius:.38em;line-height:1.46;-webkit-box-decoration-break:clone;box-decoration-break:clone}
+.p-edit{display:inline-block;text-shadow:0 .03em .4em var(--st-sh,rgba(0,0,0,.5));line-height:1}.p-edit .l1{display:block;font-size:.5em;letter-spacing:.01em;opacity:.92;margin-bottom:.12em}.p-edit .l2{display:block;font-size:1.25em}
+.p-pop .w{transform-origin:50% 75%}
+.p-dot .dot{color:var(--st-acc,#FF0000);font-style:normal;font-family:'EdOswald',sans-serif;font-weight:700;margin-left:.02em}
+.p-roman{font-family:'EdSerif',serif;font-weight:400;color:var(--st-text,#fff);letter-spacing:.01em;font-size:1.05em;text-shadow:0 .03em .4em var(--st-sh,rgba(0,0,0,.5))}
+.p-blur .w{will-change:transform,filter,opacity}
+.cap .w.kw-red{color:var(--st-acc,#FF0000)!important}.cap .w.kw-osw{font-family:'EdOswald',sans-serif!important;font-style:normal!important;font-weight:700!important;text-transform:uppercase!important;letter-spacing:0}
+.pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:6px}
+.pcard{height:62px;padding:4px 6px;display:flex;align-items:center;justify-content:center;overflow:hidden;border-radius:10px;background:linear-gradient(135deg,#4a4444,#1c1919 60%,#6d6262);font-size:15px;line-height:1.1;white-space:normal}
+.pcard.on{border-color:var(--red);box-shadow:0 0 0 1px var(--red)}.pcard .cap .w{margin:0 .08em}
+/* word groups (one per segment, accordion) */
+.wgs{flex:none;display:flex;flex-direction:column;gap:6px}
+.wg{--gc:#888;border:1px solid var(--line);border-left:4px solid var(--gc);border-radius:8px;background:#121010;overflow:hidden}
+.wg.cur{box-shadow:0 0 0 1px var(--gc)}
+.wgh{display:flex;align-items:center;gap:8px;padding:6px 8px;cursor:pointer;font-size:12px;background:linear-gradient(90deg,color-mix(in srgb,var(--gc) 24%,transparent),transparent 75%);user-select:none}
+.wgh b{color:var(--gc)}.wgh .nm{color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wgh .cnt{margin-left:auto;color:var(--sub);font-variant-numeric:tabular-nums;white-space:nowrap}.wgh .cnt.any{color:var(--ink)}
+.wgh button{padding:1px 7px;font-size:11px;border-radius:6px}.wgh .chev{color:var(--sub);transition:transform .15s;display:inline-block}.wg.open .chev{transform:rotate(90deg)}
+.wgb{display:none;flex-wrap:wrap;gap:4px;padding:6px 8px 8px}.wg.open .wgb{display:flex}
+.chip{padding:2px 8px;border-radius:99px;border:1px solid var(--line);font-size:12px;cursor:pointer;user-select:none;color:#6f6767;background:#0d0c0c;text-decoration:line-through}
+.chip.on{color:var(--ink);text-decoration:none}.chip.cur{outline:1px solid #fff;outline-offset:1px}
+.wg .chip{border-color:color-mix(in srgb,var(--gc) 40%,transparent)}.wg .chip.on{background:color-mix(in srgb,var(--gc) 26%,#121010);border-color:var(--gc)}
+.chip small{font-size:9px;color:var(--sub);margin-left:4px;text-decoration:none}
+.chip.kw-red{text-decoration:underline;text-decoration-color:var(--st-acc,#FF0000);text-decoration-thickness:2px;text-underline-offset:3px}.chip.kw-red:not(.on){text-decoration:line-through}
+.chip.kw-osw{font-family:'EdOswald',sans-serif;text-transform:uppercase;font-weight:700;letter-spacing:.02em}
+.chip input{width:110px;padding:0 4px!important;font-size:12px!important;border-radius:4px}
+/* selected-word editor */
+.sedit{position:sticky;top:-12px;z-index:6;background:#1a1414;border:1px solid #5a3a3a;border-radius:10px;padding:8px 10px;display:flex;flex-direction:column;gap:6px;box-shadow:0 8px 20px rgba(0,0,0,.4)}.sedit[hidden]{display:none}
+.chip .ed{font-style:normal;font-size:10px;margin-left:4px;opacity:.35;text-decoration:none;display:inline-block}.chip:hover .ed{opacity:1}.chip.sel{outline:2px solid #fff;outline-offset:1px}
+.chip.ovr::before{content:'●';color:#ffc53d;font-size:8px;margin-right:3px;vertical-align:middle;text-decoration:none;display:inline-block}
+.subs.own{outline:1px dashed rgba(255,197,61,.0)}
+/* colour settings */
+.colrow{display:grid;grid-template-columns:104px 1fr;gap:8px;align-items:center;font-size:12px;color:var(--sub)}
+.colrow .sws{display:flex;gap:5px;align-items:center;flex-wrap:wrap}.colrow .sw{width:22px;height:22px}
+.colrow .def{padding:2px 8px;font-size:11px}.colrow .def.on{border-color:var(--red)}
+.sec{font-size:12px;color:var(--ink);font-weight:700;margin-top:4px;padding-top:8px;border-top:1px solid var(--line)}
+/* variants */
+.stage.nohead #v,.stage.nohead #bgc,.stage.nohead #vcan{opacity:0!important}
+.vlist{display:flex;gap:6px;flex-wrap:wrap}
+.vcard{display:flex;align-items:center;gap:6px;padding:5px 9px}.vcard.on{border-color:var(--red);background:#241b1b}.vcard i{font-style:normal;font-size:10px;font-weight:800;color:#0d0c0c;background:var(--ink);border-radius:4px;padding:0 4px}
+.vsw{width:10px;height:10px;border-radius:50%;box-shadow:0 0 0 1px rgba(255,255,255,.25)}
+.tgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:6px}
+.tcard{height:58px;padding:6px;display:grid;grid-template-columns:1fr auto;grid-template-rows:1fr auto;gap:3px;text-align:left;border-radius:10px;font-size:12px}
+.tcard b{grid-column:1/-1;font-size:12px}.tcard span{border-radius:4px;font-size:10px;padding:1px 4px;min-width:18px;min-height:12px}.tcard.on{box-shadow:0 0 0 2px var(--red)}
+.cpick{display:flex;align-items:center;justify-content:space-between;gap:6px;font-size:12px;color:var(--sub)}
+#vCustom{display:grid;grid-template-columns:1fr 1fr;gap:6px 14px}#vCustom[hidden]{display:none}
+.ygrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:6px}
+.ycard{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:7px 9px;text-align:left;border-radius:10px;overflow:hidden}
+.ycard span:first-child{font-size:19px;line-height:1.05;white-space:nowrap}.ycard span:nth-child(2){font-size:14px;color:var(--sub)}.ycard small{font-size:10px;color:var(--sub)}.ycard.on{box-shadow:0 0 0 2px var(--red)}
+.job{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:var(--sub)}.job.err{color:#ff6b6b}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:500;display:flex;align-items:center;justify-content:center}.modal[hidden]{display:none}
+.mbox{width:min(640px,92vw);max-height:80vh;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.vbl{overflow:auto;border:1px solid var(--line);border-radius:10px;min-height:200px}
+.vbi{padding:7px 10px;border-bottom:1px solid #201d1d;cursor:pointer;font-size:13px;display:flex;justify-content:space-between}.vbi:hover{background:#1c1919}.vbi.dir{color:var(--sub)}.vbi small{color:var(--sub)}
+body.embed .right,body.embed .bar,body.embed .tl{display:none!important}body.embed .app{grid-template-columns:1fr;padding:0;gap:0}body.embed .stage{height:100vh;border-radius:0;box-shadow:none}
+/* timeline */
+.tl{grid-column:1/-1;border:1px solid var(--line);border-radius:12px;background:#110f0f;display:flex;flex-direction:column;min-width:0;user-select:none}
+.tlbar{display:flex;align-items:center;gap:6px;padding:5px 8px;border-bottom:1px solid var(--line);font-size:12px;color:var(--sub);flex-wrap:wrap}.tlbar button{padding:2px 8px;font-size:12px}
+.tlscroll{overflow-x:auto;overflow-y:hidden;position:relative}
+.tlin{position:relative}
+.lane{position:relative;border-bottom:1px solid #1d1a1a}.lane .lab{position:sticky;left:0;z-index:5;display:inline-block;font-size:10px;color:var(--sub);background:#110f0f;padding:0 5px;border-right:1px solid #1d1a1a;height:100%;line-height:inherit}
+.ruler{height:20px;cursor:col-resize;font-size:10px;color:var(--sub)}.ruler .tk{position:absolute;top:0;height:100%;border-left:1px solid #2c2828;padding-left:3px;line-height:20px}
+.lane.seg{height:38px}.blk{position:absolute;top:4px;height:30px;border-radius:7px;border:1px solid rgba(255,255,255,.18);overflow:hidden;font-size:11px;line-height:28px;padding:0 9px;white-space:nowrap;color:#fff;cursor:grab}
+.blk.on{box-shadow:0 0 0 1.5px #fff}.blk .h{position:absolute;top:0;bottom:0;width:7px;cursor:ew-resize}.blk .h.l{left:0}.blk .h.r{right:0}.blk.mod::after{content:'•';position:absolute;right:9px;top:0;color:#fff}
+.tr{position:absolute;top:4px;width:11px;height:11px;margin-left:-5.5px;transform:rotate(45deg);border:2px solid #fff;background:#110f0f;z-index:4;cursor:pointer}.tr.flash{background:#fff}
+.lane.wav{height:40px}.lane.wav canvas{position:absolute;left:0;top:0;height:40px}
+.lane.words{height:22px;font-size:10px}.wd{position:absolute;top:4px;height:14px;border-left:1px solid #4a4444;padding-left:2px;color:#7d7474;white-space:nowrap;overflow:hidden;cursor:pointer}.wd.on{color:#fff;border-color:var(--red)}
+.lane.sfx{height:30px}.sfxb{position:absolute;top:3px;height:24px;border-radius:6px;background:#2a3a5a;border:1px solid #4d6aa3;font-size:10px;line-height:22px;padding:0 6px;color:#dfe8ff;white-space:nowrap;overflow:hidden;cursor:grab}.sfxb.sel{box-shadow:0 0 0 1.5px #fff}.sfxb.mute{opacity:.4}
+.lane.sfx.over{background:#16203a}
+.lane.marks{height:18px}.mk{position:absolute;top:2px;width:10px;height:12px;margin-left:-5px;cursor:pointer;font-size:10px;line-height:12px;text-align:center;border-radius:2px}.mk.note{background:#ffc53d;color:#000}.mk.mark{background:#00a2c7;color:#000}
+.ph{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;background:var(--red);z-index:8;pointer-events:none}
+body.tlmin .tlscroll{display:none}body.tlmin .stage{height:calc(100vh - 220px)}
+/* sfx panel */
+.sfxcat{font-size:11px;color:var(--sub);margin-top:4px;text-transform:uppercase;letter-spacing:.06em}
+.sfxrow{display:grid;grid-template-columns:28px 1fr auto auto;gap:6px;align-items:center;padding:3px 6px;border-radius:7px;font-size:12px;cursor:grab}.sfxrow:hover{background:#1c1919}.sfxrow small{color:var(--sub)}
+.sfxrow button{padding:1px 6px;font-size:11px}
+/* lint */
+.lint{position:absolute;inset:0;z-index:99;pointer-events:none}.lint div{position:absolute;border:2px dashed #ffc53d;background:rgba(255,197,61,.12)}
+#lintBtn.bad{border-color:#ffc53d;color:#ffc53d}/* flexible layout (layout.js): docks L / R / B around the centre preview */
+.app{display:grid;grid-template-columns:var(--wL,0px) auto minmax(0,1fr) auto var(--wR,520px);grid-template-rows:minmax(0,1fr) auto var(--hB,250px);gap:0;height:100%;padding:10px}
+.dockL{grid-column:1;grid-row:1}.spL{grid-column:2;grid-row:1}.center{grid-column:3;grid-row:1}.spR{grid-column:4;grid-row:1}.dockR{grid-column:5;grid-row:1}.spB{grid-column:1/-1;grid-row:2}.dockB{grid-column:1/-1;grid-row:3}
+.center{min-width:0;min-height:0;overflow:hidden;display:flex;justify-content:center;padding:0 8px}.center>.left{height:100%;width:100%}
+.dock{display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden}.dockB{flex-direction:row}.dock[hidden],.splitter[hidden]{display:none}
+.splitter{background:transparent;position:relative;z-index:5}.spL,.spR{width:8px;cursor:col-resize}.spB{height:8px;cursor:row-resize}
+.splitter:hover,.isplit:hover{background:rgba(255,42,42,.35)}
+.isplit{flex:0 0 6px;cursor:row-resize;border-radius:3px}.dockB .isplit{cursor:col-resize}
+.pnl{display:flex;flex-direction:column;min-width:0;min-height:0;flex:1 1 0;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#110f0f}
+.pnl.min{flex:0 0 auto!important}.pnl.min .pbd{display:none}.pnl.moving{opacity:.45}
+.phd{display:flex;align-items:center;gap:7px;padding:3px 8px;font-size:11px;color:var(--sub);cursor:grab;user-select:none;background:#151212;border-bottom:1px solid var(--line);white-space:nowrap}
+.phd:hover{color:var(--ink)}.phd .grip{opacity:.5}.phd .pmin{margin-left:auto;padding:0 6px;font-size:11px;border-radius:5px;background:none;border:0;color:inherit}
+.pnl.min .phd{border-bottom:0}
+.pbd{flex:1;min-height:0;display:flex;flex-direction:column;gap:8px;padding:8px;overflow:hidden}
+.pnl[data-id=scenes] .list{flex:1;min-height:0}.pnl[data-id=tabs] .panes{flex:1;min-height:0}.pnl[data-id=tl] .pbd{padding:0}
+.pnl .tl{border:0;border-radius:0;flex:1;min-height:0}.pnl .tlscroll{flex:1;min-height:0;overflow:auto}
+.dock.allmin{width:34px}.dockL.allmin .pnl,.dockR.allmin .pnl{flex:1 1 0!important}
+.dockL.allmin .phd,.dockR.allmin .phd{writing-mode:vertical-rl;height:100%;padding:8px 3px;border:0}
+.dz{position:fixed;inset:0;z-index:400;pointer-events:none}.dz[hidden]{display:none}
+.dz div{position:absolute;border:2px dashed rgba(255,255,255,.25);border-radius:12px;display:flex;align-items:center;justify-content:center;color:var(--sub);font-weight:700;background:rgba(13,12,12,.35)}
+.dz div.on{border-color:var(--red);color:var(--ink);background:rgba(255,42,42,.12)}
+.dz [data-k=L]{left:10px;top:10px;bottom:28%;width:17%}.dz [data-k=R]{right:10px;top:10px;bottom:28%;width:17%}.dz [data-k=B]{left:10px;right:10px;bottom:10px;height:23%}
+.dz .ins{position:fixed;display:none;background:var(--red);border-radius:2px}
+body.resizing,body.resizing *{user-select:none!important}
+body.embed .dock,body.embed .splitter{display:none!important}body.embed .app{grid-template-columns:0 0 1fr 0 0;grid-template-rows:1fr 0 0;padding:0}body.embed .center{padding:0}</style></head>
+<body>
+<div class="app">
+  <div class="left">
+    <div class="stage" id="stage">
+      <div class="vwrap" id="vwrap"><canvas id="bgc" width="216" height="192"></canvas><video id="v" preload="auto" playsinline></video></div>
+      <div id="flash" style="position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:90"></div>
+      <div class="subs" id="subs"></div>
+      <div class="phone" id="phone"></div>
+      <div class="safe" id="safe"><div id="safeBox"></div></div>
+      <div class="lint" id="lintLayer"></div>
+      <div class="edl" id="edLayer"><div class="edbox hov" id="edHover"></div><div class="edbox" id="edBox"><div class="edh" id="edHandle" title="Sürükle: ölçekle"></div></div></div>
+    </div>
+    <div class="bar">
+      <button id="play">▶︎</button>
+      <button id="back" title="1 kare geri (←)">◀︎</button>
+      <button id="fwd" title="1 kare ileri (→)">▶︎|</button>
+      <input type="range" id="scrub" min="0" max="55.8" step="0.001" value="0">
+      <span class="time" id="time">0.00 / 55.80</span>
+    </div>
+    <div class="bar">
+      <select id="rate"><option value="1">1×</option><option value="0.5">0.5×</option><option value="0.25">0.25×</option></select>
+      <select id="varSel" title="Aktif varyant · V: sonraki · B: A/B çevir · Alt+1..9"></select>
+      <button id="lintBtn" title="Güvenli alan / platform arayüzü / taşma kontrolü (L)">⚠ Kontrol</button>
+    </div>
+    <div class="bar">
+      <label><input type="checkbox" id="loop"> Döngü</label>
+      <label><input type="checkbox" id="safeT"> Güvenli alan</label>
+      <label><input type="checkbox" id="phoneT"> Telefon</label>
+      <select id="phoneK"><option value="reels">Instagram Reels</option><option value="tiktok">TikTok</option></select>
+    </div>
+  </div>
+  <div class="right">
+    <h1>EditSync <b>Stüdyo</b> <span class="hint" id="seginfo"></span></h1>
+    <div class="list" id="list"></div>
+    <div class="tabs" id="tabs"><button data-tab="notes" class="on">Notlar</button><button data-tab="edit">Düzenle</button><button data-tab="subs">Altyazı</button><button data-tab="var">Varyant</button><button data-tab="sfx">SFX</button></div>
+    <div class="panes">
+    <div class="notes pane" id="tab-notes">
+      <div><b>Not</b> <span class="hint">— şu anki saniyeye ve segmente kaydedilir</span></div>
+      <textarea id="ntext" placeholder="Örn: 7.074 kartı daha büyük olsun / bu yazı 0.3 sn önce gelsin"></textarea>
+      <div style="display:flex;gap:8px;align-items:center"><button id="nadd">Not ekle</button><span class="flash" id="msg"></span></div>
+      <div class="nlist" id="nlist"></div>
+    </div>
+    <div class="pane" id="tab-edit" hidden>
+      <div class="row"><label><input type="checkbox" id="edOn"> <b>Düzenleme modu</b></label><span class="hint">E · video durur, sahnede bir yazıya / görsele tıkla, sürükle = taşı, tekerlek = ölçek</span></div>
+      <div class="hint" id="edNone">Seçili öğe yok.</div>
+      <div id="insp" class="insp" hidden>
+        <div class="hint" id="edSel"></div>
+        <div class="fl" id="edRowText">Metin <input type="text" id="edText" spellcheck="false"></div>
+        <div class="fl" id="edRowColor">Renk <div class="row" id="edColors">
+          <button class="sw" data-c="#FFFFFF" style="background:#FFFFFF" title="Beyaz"></button><button class="sw" data-c="#0B0B0B" style="background:#0B0B0B" title="Siyah"></button>
+          <button class="sw" data-c="#FF0000" style="background:#FF0000" title="Kırmızı"></button><button class="sw" data-c="#A8A0A0" style="background:#A8A0A0" title="Gri"></button>
+          <input type="color" id="edColor" title="Özel renk"><button id="edColorX">Orijinal</button></div></div>
+        <div class="fl" id="edRowFont">Yazı tipi <div class="btns" id="edFonts"><button data-f="oswald" style="font-family:EdOswald;font-weight:700">OSWALD</button><button data-f="serif">Serif</button><button data-f="serif-italic"><i>Serif italik</i></button><button data-f="">Orijinal</button></div></div>
+        <div class="fl">Ölçek <div class="row"><input type="range" id="edScale" min="0.2" max="3" step="0.01" value="1"><span id="edScaleV" class="hint" style="min-width:38px">1.00</span></div></div>
+        <div class="fl">Konum <div class="row"><span id="edPos" class="hint"></span><button id="edPosX">Konumu sıfırla</button></div></div>
+        <div class="drop" id="edDrop" hidden>Yeni görseli buraya bırak ya da <u>dosya seç</u><input type="file" id="edFile" accept="image/*" hidden></div>
+        <div class="row"><button id="edReset">Bu öğeyi sıfırla</button><span class="flash" id="edMsg"></span></div>
+      </div>
+      <div class="hint" id="edCount"></div>
+    </div>
+    <div class="pane" id="tab-subs" hidden>
+      <div class="hint">Altyazı her zaman açık; sadece açtığın kelimeler görünür. Kelimeye tıkla: aç/kapat · çift tık: metni düzenle · sağ tık: vurgu (vurgu rengi → Oswald → yok) · <b>Alt+tık / ✎: kelimeyi seç ve düzenle</b> · <b>önizlemede sürükle: sadece o kelime taşınır</b> (Ctrl+sürükle: hepsi · Shift: sadece dikey)</div>
+      <div class="sedit" id="sEdit" hidden>
+        <div class="row"><b>Altyazıyı düzenle</b><span class="hint" id="sEdName"></span><button id="sEdGo" title="Kelimeye git">Git</button><button id="sEdX" title="Seçimi bırak" style="margin-left:auto">×</button></div>
+        <div class="fl">Metin <input type="text" id="sEdText" spellcheck="false"></div>
+        <label class="row"><input type="checkbox" id="sAll" checked> <b>Değişiklikleri diğerlerine de uygula</b></label>
+        <div class="row"><span class="hint" id="sEdHint"></span><button id="sEdReset" hidden>Genele döndür</button></div>
+        <div class="hint">Stil / boyut / konum / renkleri aşağıdan değiştir; önizlemede sürükleyerek de taşıyabilirsin.</div>
+      </div>
+      <div class="row"><button id="sAllOn">Hepsini aç</button><button id="sAllOff">Hepsini kapat</button>
+        <label title="Yan yana kelimeler doğal öbekler halinde tek altyazı olur (noktalama ve duraklamada bölünür)"><input type="checkbox" id="sMerge"> öbekle</label>
+        <label title="Bir altyazıda en fazla kaç kelime">en fazla <select id="sGroup"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select> kelime</label><span class="hint" id="sCount"></span></div>
+      <div class="row"><label title="Son kelimeden sonra altyazı en fazla bu kadar ekranda kalır">bekleme <input type="range" id="sHold" min="0.3" max="2.5" step="0.1" value="1.5" style="width:110px"> <span class="hint" id="sHoldV">1.5 sn</span></label>
+        <label title="Altyazı sahne kesimini geçmez, kesimde biter"><input type="checkbox" id="sScene" checked> sahne kesiminde bitir</label></div>
+      <div class="hint">Kelimeye tık: o saniyeye git · Ctrl+tık: aç / kapat · Shift+tık: oradan böl / birleştir · | altyazının bittiği yer · süreyi zaman çizelgesindeki Altyazı şeridinden sürükle</div>
+      <style>.wgb .brk{display:inline-block;margin:0 3px 0 -1px;color:#e5484d;font-weight:700;opacity:.7}.wgb .brk.cut{opacity:1}.wgb .brk.join{color:#46a758;opacity:1}</style>
+      <div class="wgs" id="sWords"></div>
+      <div class="sec" id="sTgtName">Genel ayarlar</div>
+      <div class="pgrid" id="sPresets"></div>
+      <div class="fl">Boyut <input type="range" id="sSize" min="0.5" max="2" step="0.05" value="1"></div>
+      <div class="fl">Dikey (Y) <input type="range" id="sY" min="0.04" max="0.96" step="0.005" value="0.7"></div>
+      <div class="fl">Yatay (X) <div class="row"><input type="range" id="sX" min="0.1" max="0.9" step="0.005" value="0.5"><button id="sCenter">Ortala</button></div></div>
+      <div class="sec">Renkler</div>
+      <div id="sColors" style="display:flex;flex-direction:column;gap:6px"></div>
+      <div class="row"><button id="sSrt">SRT indir</button><span class="flash" id="sMsg"></span></div>
+    </div>
+    <div class="pane" id="tab-var" hidden>
+      <div class="row"><b>Varyantlar</b><button id="vNew">+ Yeni</button><button id="vDup">Çoğalt</button><button id="vDel">Sil</button><span class="flash" id="vMsg"></span></div>
+      <div class="vlist" id="vList"></div>
+      <div class="row hint">A <select id="vA"></select> B <select id="vB"></select><button id="vFlip" title="B tuşu">A/B çevir</button><a id="vCmp" target="_blank" style="color:var(--ink)">Yan yana karşılaştır ↗</a></div>
+      <div class="row"><button id="vStill" title="Bu anın 1080×1920 PNG'si (aktif varyant) · Shift+tık: tüm varyantlar">📷 Kare PNG</button><span class="hint">Shift+tık: her varyant için ayrı PNG</span></div>
+      <div class="fl">Ad <input type="text" id="vName" spellcheck="false"></div>
+      <div class="sec">Renk teması</div>
+      <div class="tgrid" id="vThemes"></div>
+      <div id="vCustom" hidden></div>
+      <div class="sec">UI stili <span class="hint">— kartlar / paneller</span></div>
+      <div class="btns" id="vUI"></div>
+      <div class="fl">Köşe <div class="row"><input type="range" id="vRad" min="0" max="90" step="1"><span class="hint" id="vRadV"></span></div></div>
+      <div class="fl">Gölge <input type="range" id="vSh" min="0" max="2" step="0.05"></div>
+      <div class="fl">Kenarlık <input type="range" id="vBw" min="0" max="12" step="0.5"></div>
+      <div class="fl">Zemin dokusu <div class="btns" id="vTex"></div></div>
+      <div class="sec">Tipografi</div>
+      <div class="ygrid" id="vType"></div>
+      <div class="fl">Harf aralığı <div class="row"><input type="range" id="vTrack" min="-0.08" max="0.2" step="0.005"><span class="hint" id="vTrackV"></span><button id="vTrackX">↺</button></div></div>
+      <div class="fl">Harf durumu <select id="vCase"><option value="original">Preset</option><option value="uppercase">BÜYÜK</option><option value="none">Olduğu gibi</option><option value="lowercase">küçük</option><option value="capitalize">Baş Harfler</option></select></div>
+      <div class="fl">Başlık ağırlığı <select id="vWeight"><option value="">Preset</option><option>400</option><option>500</option><option>600</option><option>700</option><option>800</option><option>900</option></select></div>
+      <div class="sec">Motion <span class="hint">— değişince klipler yeniden yüklenir</span></div>
+      <div class="btns" id="vEnter"></div>
+      <div class="fl">Hız <div class="row"><input type="range" id="vSpeed" min="0.75" max="1.5" step="0.05"><span class="hint" id="vSpeedV"></span></div></div>
+      <div class="fl">Esneklik <div class="row"><input type="range" id="vBounce" min="-0.5" max="1" step="0.05"><span class="hint" id="vBounceV"></span></div></div>
+      <div class="sec">Konuşan kafa</div>
+      <div class="fl">Video <div class="row"><select id="vHead" style="flex:1"></select><input type="color" id="vHeadBg" title="Kafa yokken zemin rengi"></div></div>
+      <div class="row"><button id="vBrowse">Klasörden ekle…</button><div class="drop" id="vDrop" style="flex:1;padding:8px">.mov / .mp4 sürükle-bırak</div></div>
+      <div id="vJobs"></div>
+      <div class="row"><label><input type="checkbox" id="vSubs"> Bu varyantta altyazı</label></div>
+    </div>
+    <div class="pane" id="tab-sfx" hidden>
+      <div class="row"><b>SFX havuzu</b><span class="hint">sürükle → zaman çizelgesi · ▶ dinle · + oynatma çizgisine ekle</span></div>
+      <div class="fl">Ana seviye <div class="row"><input type="range" id="xMaster" min="-24" max="12" step="0.5"><span class="hint" id="xMasterV"></span><label><input type="checkbox" id="xMute"> sessiz</label></div></div>
+      <div id="xSel"></div>
+      <div class="row"><button id="xExport">SFX stem indir (WAV)</button><span class="flash" id="xMsg"></span></div>
+      <div id="xLib"></div>
+    </div>
+    </div>
+  </div>
+  <div class="tl" id="tl">
+    <div class="tlbar"><button id="tlMin" title="Zaman çizelgesini daralt (T)">▾</button><b style="color:var(--ink)">Zaman çizelgesi</b>
+      <button id="tlOut">−</button><button id="tlIn">+</button><button id="tlFit">Sığdır</button>
+      <label><input type="checkbox" id="tlSnap" checked> kelimelere yapış</label>
+      <span class="hint" style="cursor:help" title="Blok kenarı: kırp · gövde: kaydır · ◆: geçiş (blur/flash) · çift tık: sıfırla · M: işaret · Ctrl+tekerlek: yakınlaş&#10;Boşluk oynat · ←/→ kare · N not · E düzenle · V varyant · B A/B · L kontrol · T zaman çizelgesi · K kare kaydet">ⓘ kısayollar</span></div>
+    <div class="tlscroll" id="tlScroll"><div class="tlin" id="tlInner"></div></div>
+  </div>
+</div>
+<div class="modal" id="vbModal" hidden><div class="mbox">
+  <div class="row"><b>Kafa videosu seç</b><span class="hint">sadece okunur · seçilen dosyadan 1080×1920 H.264 proxy üretilir (ses ve süre orijinal kafadan)</span><button id="vbClose" style="margin-left:auto">Kapat</button></div>
+  <div class="row"><input type="text" id="vbPath" spellcheck="false" style="flex:1"><button id="vbGo">Git</button></div>
+  <div class="vbl" id="vbList"></div>
+</div></div>
+<script>
+const $ = (id) => document.getElementById(id);
+const v = $('v'), stage = $('stage'), vwrap = $('vwrap');
+window.studioVideo = v; // compare.html drives embedded studios through this
+window.__EDS_MANUAL = new URLSearchParams(location.search).has('render'); // headless MP4 export: no free-running loop
+let DATA = null, SEGS = [], frames = {}, mt = {}, active = null;
+
+const fmt = (t) => t.toFixed(2);
+// trans:"flash" on a segment = it cuts in under a white flash instead of the blur dissolve
+const nextOf = (s) => SEGS[SEGS.indexOf(s) + 1];
+const flashIn = (s) => !!s && s.trans === 'flash';
+const endOf = (s) => (flashIn(nextOf(s)) ? nextOf(s).start : s.end); // runs right up to a flash cut
+const segAt = (t) => SEGS.find((s) => t >= s.start && t < endOf(s)) || null;
+
+async function init() {
+  DATA = await (await fetch('/api/segments', { cache: 'no-store' })).json();
+  SEGS = DATA.segments; if (!v.getAttribute('src')) v.src = DATA.video; $('scrub').max = DATA.duration; // a variant may have set its head already
+  // work/timing.json (timeline edits) overrides start / end / transition without touching segments.json
+  let T = {}; try { T = (await (await fetch('/api/store/timing', { cache: 'no-store' })).json()).segs || {}; } catch {}
+  SEGS.forEach((s) => { s._orig = { start: s.start, end: s.end, trans: s.trans }; const o = T[s.id]; if (!o) return;
+    if (o.start != null) s.start = o.start; if (o.end != null) s.end = o.end; if (o.trans) { if (o.trans === 'blur') delete s.trans; else s.trans = o.trans; } });
+  $('list').innerHTML = SEGS.map((s) => `<div class="seg" data-id="${s.id}"><div class="id">${s.id}</div><div><div>${s.name}</div><div class="tm">${fmt(s.start)} – ${fmt(s.end)} · ${s.layout}</div></div><span class="tag">${s.status || ''}</span></div>`).join('');
+  [...document.querySelectorAll('.seg')].forEach((el) => el.onclick = () => { const s = SEGS.find((x) => x.id === el.dataset.id); v.currentTime = s.start + 0.001; });
+  loadNotes(); requestAnimationFrame(tick); if (!window.__EDS_MANUAL) setInterval(hot, 1500);
+  dispatchEvent(new Event('eds:segments'));
+}
+
+// one iframe per segment, created when the playhead gets near it
+function frameFor(s) {
+  if (frames[s.id]) return frames[s.id];
+  const f = document.createElement('iframe');
+  f.src = s.file + '?render&inject&v=' + Date.now(); // &inject: the server loads studio/motion-hook.js first (motion variants)
+  f.setAttribute('allowtransparency', 'true');
+  stage.insertBefore(f, $('safe'));
+  frames[s.id] = f; return f;
+}
+function layoutFrame(f, s) {
+  const split = s.layout === 'split', [W, H] = s.size || [1440, split ? 1280 : 2560], k = stage.clientWidth / W; // s.size: sayfanın kendi tuval boyutu (simple stili 1080×1920)
+  f.style.width = W + 'px'; f.style.height = H + 'px';
+  f.style.transform = `scale(${k})`;
+}
+
+const BM_c = (x) => Math.max(0, Math.min(1, x));
+const ease = (x) => x * x * (3 - 2 * x);
+// fade envelope of a segment: 0.3 s in / out (none at the very start of the video)
+const fadeIn = (s) => (flashIn(s) ? 0 : s.fadeIn ?? (s.start < 0.01 ? 0 : 0.3));
+// back-to-back segments hand over without the face flashing between them: the outgoing one holds
+// (frozen just before its own exit) underneath until the incoming one has fully dissolved in, then fades.
+function handoff(s) {
+  const n = SEGS[SEGS.indexOf(s) + 1];
+  return n && !flashIn(n) && n.start - s.end < 0.25 && !s.fadeOut ? n.start + fadeIn(n) : null;
+}
+function env(t, s) {
+  if (flashIn(nextOf(s))) return ease(fadeIn(s) > 0 ? BM_c((t - s.start) / fadeIn(s)) : 1) * (t < endOf(s) ? 1 : 0);
+  const fi = fadeIn(s), h = handoff(s), fo = s.fadeOut ?? 0.3;
+  const a = fi > 0 ? BM_c((t - s.start) / fi) : 1;
+  const b = h != null ? BM_c((h + 0.3 - t) / 0.3) : fo > 0 ? BM_c((s.end - t) / fo) : 1;
+  return ease(a) * ease(b);
+}
+function syncFrame(f, s, t) {
+  const dur = s.end - s.start, cap = (handoff(s) != null || flashIn(nextOf(s))) && t > s.end - 0.25 ? dur - 0.25 : dur;
+  try { window.ED && ED.hook(f.contentWindow, s); f.__p = f.contentWindow.__bm && f.contentWindow.__bm.seek(Math.max(0, Math.min(cap, t - s.start))); } catch {} // __p: the MP4 renderer awaits async seeks
+}
+// after any jump, re-seek every loaded segment so no stale state (blur, exit) can linger
+function resyncAll() { const t = v.currentTime; for (const [id, f] of Object.entries(frames)) syncFrame(f, SEGS.find((q) => q.id === id), t); }
+v.addEventListener('seeked', resyncAll); v.addEventListener('play', resyncAll);
+
+function tick() {
+  const t = v.currentTime, s = segAt(t);
+  $('scrub').value = t; $('time').textContent = `${fmt(t)} / ${fmt(DATA.duration)}`;
+  // preload neighbours
+  SEGS.forEach((x) => { if (Math.abs(t - x.start) < 2.5 || (t >= x.start && t < (handoff(x) ?? x.end) + 0.3)) frameFor(x); });
+  for (const [id, f] of Object.entries(frames)) {
+    const x = SEGS.find((q) => q.id === id), h = handoff(x);
+    const on = x === s || (h != null && t >= x.start && t < h + 0.3);
+    f.style.visibility = on ? 'visible' : 'hidden'; f.style.zIndex = SEGS.indexOf(x) + 1;
+    if (on) {
+      layoutFrame(f, x); syncFrame(f, x, t);
+      // soft in/out: every segment dissolves with blur instead of a hard cut
+      const a = env(t, x), fs = f.style;
+      fs.opacity = a.toFixed(3); fs.filter = a < 0.999 ? `blur(${((1 - a) * 22).toFixed(1)}px)` : 'none';
+    }
+  }
+  // face window: full screen normally; in split layouts it glides down into the bottom half,
+  // shrinking until the whole head (faceTop..faceTop+faceFrac) fits, with a blurred copy filling the sides
+  const bgc = $('bgc'), vs = v.style, W = stage.clientWidth, H = stage.clientHeight;
+  // (a flash cut snaps the face window instead of gliding it)
+  const q = s && s.layout === 'split'
+    ? (flashIn(s) ? 1 : ease(BM_c((t - s.start) / 0.45))) * (flashIn(nextOf(s)) ? 1 : ease(BM_c((s.end - t) / 0.45))) : 0;
+  // white flash centred on every flash cut
+  let fl = 0; SEGS.forEach((x) => { if (flashIn(x)) fl = Math.max(fl, Math.pow(BM_c(1 - Math.abs(t - x.start) / 0.16), 1.6)); });
+  $('flash').style.opacity = (0.92 * fl).toFixed(3);
+  let rx = 0, ry = 0, rw = W, rh = H;
+  if (q > 0) {
+    const top = s.faceTop ?? 0.21, frac = s.faceFrac ?? 0.72, hv = (H / 2) / frac, wv = hv * 9 / 16;
+    const sx = (W - wv) / 2, sy = H / 2 - top * hv;
+    rx = sx * q; ry = sy * q; rw = W + (wv - W) * q; rh = H + (hv - H) * q;
+    // blurred fill = same footage scaled to cover, aligned on the face centre so it continues the sharp image
+    const g = bgc.getContext('2d'), c = bgc.width / W, k = (W / wv) * 1.12, fy = top + frac / 2;
+    const dw = W * 1.12 * c, dh = hv * k * c, dx = (bgc.width - dw) / 2, dy = (sy + fy * hv - fy * hv * k - H / 2) * c;
+    g.filter = 'blur(9px) brightness(.85)'; g.drawImage(v, dx, dy, dw, dh);
+  }
+  vs.objectFit = 'fill'; vs.left = rx + 'px'; vs.top = ry + 'px'; vs.width = rw + 'px'; vs.height = rh + 'px';
+  // feather the face's left/right edges into the blurred sides (no visible seam)
+  const fe = (12 * q).toFixed(2), mk = q > 0 ? `linear-gradient(to right, transparent 0%, #000 ${fe}%, #000 ${100 - fe}%, transparent 100%)` : 'none';
+  vs.webkitMaskImage = vs.maskImage = mk;
+  // the <video> layer sometimes stops being composited (paused + seeked in the embedded pane) although its frames
+  // decode fine, so the face is painted through our own canvas mirror on top of it, every tick
+  let vc = $('vcan');
+  if (!vc) { vc = document.createElement('canvas'); vc.id = 'vcan'; vc.style.cssText = 'position:absolute;pointer-events:none'; v.after(vc); }
+  const cs = vc.style; cs.left = vs.left; cs.top = vs.top; cs.width = vs.width; cs.height = vs.height; cs.webkitMaskImage = cs.maskImage = mk;
+  cs.opacity = getComputedStyle(v).opacity; cs.display = v.readyState >= 2 ? 'block' : 'none';
+  const dpr = Math.min(2, devicePixelRatio || 1), cwid = Math.max(1, Math.round(rw * dpr)), chei = Math.max(1, Math.round(rh * dpr));
+  if (vc.width !== cwid || vc.height !== chei) { vc.width = cwid; vc.height = chei; }
+  if (v.readyState >= 2) vc.getContext('2d').drawImage(v, 0, 0, cwid, chei);
+  bgc.style.display = q > 0 ? 'block' : 'none'; bgc.style.opacity = q.toFixed(3);
+  if (s !== active) {
+    active = s; document.querySelectorAll('.seg').forEach((el) => el.classList.toggle('on', !!s && el.dataset.id === s.id));
+    $('seginfo').textContent = s ? `${s.id} · ${s.name}` : 'yüz';
+  }
+  if ($('loop').checked && v.dataset.loop) { const L = SEGS.find((q) => q.id === v.dataset.loop); if (L && (t >= L.end || t < L.start - 0.05)) v.currentTime = L.start; }
+  if (!window.__EDS_MANUAL) requestAnimationFrame(tick); // MP4 render (?render) drives tick() itself, frame by frame
+}
+
+// hot reload: rebuild of a dist page -> reload just that iframe
+async function hot() {
+  for (const s of SEGS) {
+    if (!frames[s.id]) continue;
+    try {
+      const { m } = await (await fetch('/api/mtime?f=' + encodeURIComponent(s.file.slice(1)), { cache: 'no-store' })).json();
+      if (mt[s.id] && m !== mt[s.id]) { frames[s.id].src = s.file + '?render&inject&v=' + Date.now(); flash(`${s.id} güncellendi`); }
+      mt[s.id] = m;
+    } catch {}
+  }
+}
+
+async function loadNotes() {
+  const notes = await (await fetch('/api/notes', { cache: 'no-store' })).json();
+  $('nlist').innerHTML = notes.slice().reverse().map((n) => `<div class="note${n.done ? ' done' : ''}"><div class="m">${n.seg} · ${fmt(n.t)} sn</div>${n.text.replace(/</g, '&lt;')}</div>`).join('') || '<span class="hint">Henüz not yok.</span>';
+}
+async function addNote() {
+  const text = $('ntext').value.trim(); if (!text) return;
+  const s = segAt(v.currentTime);
+  await fetch('/api/note', { method: 'POST', body: JSON.stringify({ seg: s ? s.id : 'yüz', t: v.currentTime, text }) });
+  $('ntext').value = ''; flash('Not kaydedildi'); loadNotes();
+}
+function flash(m) { $('msg').textContent = m; clearTimeout(flash.t); flash.t = setTimeout(() => ($('msg').textContent = ''), 2500); }
+function showTab(n) {
+  document.querySelectorAll('#tabs button').forEach((b) => b.classList.toggle('on', b.dataset.tab === n));
+  ['notes', 'edit', 'subs', 'var', 'sfx'].forEach((x) => ($('tab-' + x).hidden = x !== n));
+}
+document.querySelectorAll('#tabs button').forEach((b) => (b.onclick = () => showTab(b.dataset.tab)));
+
+const step = (d) => { v.pause(); v.currentTime = Math.max(0, v.currentTime + d); };
+$('play').onclick = () => (v.paused ? v.play() : v.pause());
+v.onplay = () => ($('play').textContent = '❚❚'); v.onpause = () => ($('play').textContent = '▶︎');
+$('back').onclick = () => step(-1 / 30); $('fwd').onclick = () => step(1 / 30);
+$('scrub').oninput = (e) => (v.currentTime = Number(e.target.value));
+$('rate').onchange = (e) => (v.playbackRate = Number(e.target.value));
+$('loop').onchange = (e) => { const s = segAt(v.currentTime); v.dataset.loop = e.target.checked && s ? s.id : ''; };
+$('safeT').onchange = (e) => {
+  $('safe').style.display = e.target.checked ? 'block' : 'none';
+  const k = stage.clientWidth / 1440, b = $('safeBox').style; // 140 sides, 260 top, 560 bottom on 1440x2560
+  b.left = 140 * k + 'px'; b.right = 140 * k + 'px'; b.top = 260 * k + 'px'; b.bottom = 560 * k + 'px';
+};
+$('nadd').onclick = addNote;
+addEventListener('keydown', (e) => {
+  const tg = e.target;
+  if (tg.id === 'ntext') { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) addNote(); return; }
+  if (tg.tagName === 'TEXTAREA' || tg.isContentEditable || (tg.tagName === 'INPUT' && !/^(range|checkbox|button|color|file)$/.test(tg.type))) return;
+  if (e.code === 'Space') { e.preventDefault(); $('play').click(); }
+  if (e.key === 'ArrowLeft') step(-1 / 30); if (e.key === 'ArrowRight') step(1 / 30);
+  if (e.key === 'n' || e.key === 'N') { e.preventDefault(); v.pause(); showTab('notes'); $('ntext').focus(); }
+  if ((e.key === 'e' || e.key === 'E') && window.ED) { e.preventDefault(); ED.toggle(); }
+  if (e.key === 'Escape' && window.ED) ED.select(null);
+  if ((e.key === 't' || e.key === 'T') && !e.ctrlKey && !e.metaKey) { if (window.LAYOUT) LAYOUT.toggle('tl'); else document.body.classList.toggle('tlmin'); }
+});
+init();
+</script>
+<script>
+// magnet for every drag on the stage (edit mode elements, captions): a point in stage px snaps onto the
+// vertical / horizontal centre line when within 10 px and the line lights up. Alt held = no snapping.
+(() => {
+  const st = document.getElementById('stage'), mk = (css) => { const d = document.createElement('div'); d.style.cssText = 'position:absolute;z-index:96;pointer-events:none;display:none;background:#FF2A2A;box-shadow:0 0 6px rgba(255,42,42,.8);' + css; st.appendChild(d); return d; };
+  const gx = mk('top:0;bottom:0;left:50%;width:1px'), gy = mk('left:0;right:0;top:50%;height:1px'), TH = 10;
+  window.EDS_snap = (x, y, off) => {
+    const W = st.clientWidth, H = st.clientHeight, sx = !off && Math.abs(x - W / 2) < TH, sy = !off && Math.abs(y - H / 2) < TH;
+    gx.style.display = sx ? 'block' : 'none'; gy.style.display = sy ? 'block' : 'none';
+    return [sx ? W / 2 : x, sy ? H / 2 : y];
+  };
+  EDS_snap.hide = () => { gx.style.display = gy.style.display = 'none'; };
+})();
+</script>
+<script src="layout.js"></script>
+<script src="apply-overrides.js"></script>
+<script src="look.js"></script>
+<script src="edit.js"></script>
+<script src="subs.js"></script>
+<script src="phone.js"></script>
+<script src="variants.js"></script>
+<script src="timeline.js"></script>
+<script src="sfx.js"></script>
+<script src="music.js"></script>
+<script src="lint.js"></script>
+<script src="render-page.js"></script>
+<script src="save.js"></script>
+<script src="export.js"></script>
+<script src="snap.js"></script>
+<script src="undo.js"></script>
+</body></html>

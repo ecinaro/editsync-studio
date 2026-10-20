@@ -1,0 +1,18 @@
+{
+ "video": "/work/head_proxy.mp4",
+ "source": "",
+ "duration": 8,
+ "segments": [
+  {
+   "id": "1",
+   "name": "Örnek sahne · title card",
+   "file": "/dist/example.html",
+   "start": 1.0,
+   "end": 5.0,
+   "layout": "full",
+   "size": [1080, 1920],
+   "fadeIn": 0,
+   "fadeOut": 0.001
+  }
+ ]
+}

@@ -1,0 +1,17 @@
+[ 0.20- 3.40] Bu EditSync Stüdyo için örnek bir kelime zamanlaması.
+  0.20  Bu
+  0.55  EditSync
+  1.10  Stüdyo
+  1.55  için
+  1.85  örnek
+  2.25  bir
+  2.45  kelime
+  2.90  zamanlaması.
+[ 4.20- 7.20] Kendi videonu ve kelimelerini koyduğunda burası değişir.
+  4.20  Kendi
+  4.55  videonu
+  5.00  ve
+  5.15  kelimelerini
+  5.80  koyduğunda
+  6.35  burası
+  6.75  değişir.

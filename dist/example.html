@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<title>EditSync · example segment</title>
+<style>
+  html, body { margin: 0; width: 1080px; height: 1920px; background: transparent; overflow: hidden; font-family: 'Anton', Impact, sans-serif; }
+  @font-face { font-family: 'Anton'; src: url(/studio/fonts/Anton.ttf); }
+  .card { position: absolute; left: 140px; top: 360px; width: 800px; padding: 48px 56px; box-sizing: border-box;
+          background: #fff; border-radius: 28px; box-shadow: 0 30px 80px rgba(0,0,0,.25); }
+  .card b { display: block; font-size: 120px; line-height: .95; color: #0b0b0b; letter-spacing: 1px; }
+  .card i { display: block; height: 10px; margin-top: 28px; background: #FF0000; transform-origin: 0 50%; }
+</style>
+</head>
+<body>
+<div class="card" id="card"><b>EDITSYNC<br>STÜDYO</b><i id="bar"></i></div>
+<script>
+// A segment page is a pure function of time: the studio calls __bm.seek(t) (t = seconds since the segment start)
+// for preview and for frame-exact MP4 export. Never animate with timers / CSS animations — derive everything from t.
+const card = document.getElementById('card'), bar = document.getElementById('bar');
+const ease = (x) => 1 - Math.pow(1 - Math.min(1, Math.max(0, x)), 5); // quint out
+window.__bm = {
+  duration: 4,
+  size: [1080, 1920],
+  alpha: true, // transparent background: the talking-head video shows through
+  seek(t) {
+    const a = ease(t / 0.6), out = ease((t - 3.4) / 0.5);
+    card.style.opacity = a * (1 - out);
+    card.style.transform = `translateX(${(1 - a) * -160 + out * 160}px)`;
+    card.style.filter = `blur(${(1 - a) * 14 + out * 14}px)`;
+    bar.style.transform = `scaleX(${ease((t - 0.4) / 0.8)})`;
+  },
+};
+__bm.seek(0);
+</script>
+</body>
+</html>

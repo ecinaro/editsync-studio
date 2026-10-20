@@ -1,0 +1,11 @@
+﻿node_modules/
+
+# project data: everything the studio writes into work/ stays local
+work/*
+!work/head_proxy.mp4
+!work/words.txt
+!work/shots.json
+!work/README.md
+
+.DS_Store
+Thumbs.db

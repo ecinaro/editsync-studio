@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="tr"><head><meta charset="utf-8"><title>EditSync · A/B</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+:root{--bg:#0d0c0c;--panel:#161414;--line:#2a2626;--ink:#f2efec;--sub:#9b9393;--red:#ff2a2a}
+*{box-sizing:border-box}html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:14px/1.4 system-ui,-apple-system,Segoe UI,sans-serif}
+.wrap{display:flex;flex-direction:column;height:100%;padding:12px;gap:10px}
+.pair{flex:1;display:flex;gap:14px;justify-content:center;min-height:0}
+.side{display:flex;flex-direction:column;align-items:center;gap:6px;min-height:0}
+.side iframe{border:0;height:calc(100vh - 120px);aspect-ratio:9/16;border-radius:14px;box-shadow:0 0 0 1px var(--line);background:#000}
+.lab{display:flex;gap:8px;align-items:center}.lab b{background:var(--ink);color:var(--bg);border-radius:5px;padding:0 6px;font-size:12px}
+.bar{display:flex;gap:10px;align-items:center;max-width:900px;width:100%;margin:0 auto}
+button,select{background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font:inherit;cursor:pointer}
+input[type=range]{flex:1;accent-color:var(--red)}.t{color:var(--sub);font-variant-numeric:tabular-nums;min-width:110px;text-align:right}
+.hint{color:var(--sub);font-size:12px}
+</style></head><body>
+<div class="wrap">
+  <div class="pair">
+    <div class="side"><div class="lab"><b>A</b><select id="sa"></select></div><iframe id="fa"></iframe></div>
+    <div class="side"><div class="lab"><b>B</b><select id="sb"></select><span class="hint">(sessiz)</span></div><iframe id="fb"></iframe></div>
+  </div>
+  <div class="bar"><button id="pp">▶︎</button><input type="range" id="sc" min="0" max="56" step="0.001" value="0"><span class="t" id="tm">0.00</span>
+    <span class="hint">Boşluk: oynat · ←/→: kare</span></div>
+</div>
+<script>
+// Side-by-side A/B: two bare studio pages (?embed=1&variant=…) driven by one transport. Same origin, so we reach their
+// <video> directly; B follows A's clock and stays muted (video + SFX).
+const $ = (id) => document.getElementById(id), Q = new URLSearchParams(location.search);
+const vid = (f) => { try { return f.contentWindow.studioVideo; } catch { return null; } };
+let LIST = [];
+function load(f, id) { f.src = `/studio/?embed=1&variant=${encodeURIComponent(id)}&n=${Date.now()}`; }
+function muteB() { const w = $('fb').contentWindow; try { w.studioVideo.muted = true; const m = w.document.getElementById('xMute'); if (m) { m.checked = true; m.dispatchEvent(new Event('change')); } } catch {} }
+$('fb').addEventListener('load', () => setTimeout(muteB, 300));
+(async () => {
+  LIST = await (await fetch('/api/variants', { cache: 'no-store' })).json();
+  const opts = LIST.map((x) => `<option value="${x.id}">${x.name}</option>`).join('');
+  $('sa').innerHTML = $('sb').innerHTML = opts;
+  $('sa').value = Q.get('a') || (LIST[0] || {}).id; $('sb').value = Q.get('b') || (LIST[1] || LIST[0] || {}).id;
+  load($('fa'), $('sa').value); load($('fb'), $('sb').value);
+})();
+$('sa').onchange = (e) => load($('fa'), e.target.value);
+$('sb').onchange = (e) => load($('fb'), e.target.value);
+const A = () => vid($('fa')), B = () => vid($('fb'));
+function play() { const a = A(), b = B(); if (!a) return; if (a.paused) { a.play(); b && b.play(); } else { a.pause(); b && b.pause(); } }
+$('pp').onclick = play;
+$('sc').oninput = (e) => { const t = +e.target.value; [A(), B()].forEach((x) => x && (x.currentTime = t)); };
+addEventListener('keydown', (e) => {
+  if (e.code === 'Space') { e.preventDefault(); play(); }
+  const d = e.key === 'ArrowLeft' ? -1 / 30 : e.key === 'ArrowRight' ? 1 / 30 : 0;
+  if (d) [A(), B()].forEach((x) => { if (x) { x.pause(); x.currentTime = Math.max(0, x.currentTime + d); } });
+});
+(function sync() {
+  const a = A(), b = B();
+  if (a) {
+    $('sc').max = a.duration || 56; $('sc').value = a.currentTime; $('tm').textContent = a.currentTime.toFixed(2) + ' / ' + (a.duration || 0).toFixed(2);
+    $('pp').textContent = a.paused ? '▶︎' : '❚❚';
+    if (b) { if (Math.abs(b.currentTime - a.currentTime) > (a.paused ? 0.01 : 0.12)) b.currentTime = a.currentTime; if (a.paused !== b.paused) a.paused ? b.pause() : b.play(); b.muted = true; }
+  }
+  requestAnimationFrame(sync);
+})();
+</script>
+</body></html>

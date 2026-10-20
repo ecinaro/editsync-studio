@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EditSync Plan</title>
+<style>
+:root{--bg:#0B0B0B;--panel:#141212;--panel2:#1B1818;--line:#2A2626;--ink:#F2EFEC;--sub:#9C9494;--red:#FF2A2A;--ok:#3FB950;--warn:#E3B341}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+header{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:14px;padding:12px 18px;background:rgba(11,11,11,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+header h1{margin:0;font-size:18px;font-weight:800;letter-spacing:-.01em}
+header h1 b{color:var(--red)}
+.tabs{display:flex;gap:6px;margin-left:12px}
+.tabs button,.btn{background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:9px;padding:7px 12px;font:inherit;cursor:pointer}
+.tabs button.on{border-color:var(--red);box-shadow:inset 0 0 0 1px var(--red)}
+.btn:hover,.tabs button:hover{border-color:#4a4242}
+.btn.red{background:var(--red);border-color:var(--red);color:#fff;font-weight:700}
+.sp{flex:1}
+#saved{color:var(--sub);font-size:12px;min-width:90px;text-align:right}
+main{padding:18px;max-width:1500px;margin:0 auto}
+.pane{display:none}.pane.on{display:block}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:900px){.cols{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px}
+.card h2{margin:0 0 4px;font-size:15px}
+.card .hint{color:var(--sub);font-size:12px;margin:0 0 10px}
+textarea{width:100%;min-height:420px;resize:vertical;background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:12px;font:13px/1.55 ui-monospace,"Cascadia Mono",Consolas,monospace}
+textarea:focus,input:focus,select:focus{outline:none;border-color:var(--red)}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+input[type=text],input[type=number],select{background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:6px 8px;font:inherit}
+.changes{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;gap:6px}
+.changes li{display:flex;gap:10px;align-items:flex-start;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.changes li.done .tx{text-decoration:line-through;color:var(--sub)}
+.changes .tx{flex:1;white-space:pre-wrap}
+.changes .at{color:var(--sub);font-size:11px;white-space:nowrap}
+.x{background:none;border:0;color:var(--sub);cursor:pointer;font-size:16px;line-height:1}
+.x:hover{color:var(--red)}
+/* shot list */
+table{width:100%;min-width:1240px;border-collapse:separate;border-spacing:0 6px}
+.tw{overflow-x:auto}
+td.c-screen{min-width:280px}td.c-assets{min-width:190px}td.c-notes{min-width:170px}td.c-said{min-width:220px}td.c-sel{min-width:120px}
+th{position:sticky;top:0;z-index:2;background:var(--bg);text-align:left;color:var(--sub);font-weight:600;font-size:12px;padding:6px 6px}
+td{background:var(--panel);vertical-align:top;padding:6px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+td:first-child{border-left:3px solid var(--line);border-radius:10px 0 0 10px}
+td:last-child{border-right:1px solid var(--line);border-radius:0 10px 10px 0}
+tr.st-hazir td:first-child{border-left-color:var(--ok)}
+tr.st-yapiliyor td:first-child{border-left-color:var(--warn)}
+tr.st-revize td:first-child{border-left-color:var(--red)}
+td input[type=number]{width:72px}
+td textarea{min-height:58px;font:13px/1.45 system-ui,sans-serif;padding:7px}
+td .said{color:var(--sub);font-size:12px;font-style:italic;max-width:260px}
+td select{width:100%}
+.go{background:none;border:1px solid var(--line);color:var(--ink);border-radius:7px;padding:3px 7px;cursor:pointer;font-size:12px}
+.go:hover{border-color:var(--red)}
+.tot{color:var(--sub);font-size:12px}
+</style>
+</head>
+<body>
+<header>
+  <h1>EditSync <b>Plan</b></h1>
+  <div class="tabs"><button data-t="plan" class="on">Plan &amp; metin</button><button data-t="shots">Saniye saniye</button></div>
+  <div class="sp"></div>
+  <span id="saved">—</span>
+  <button class="btn" id="md">⬇ Markdown</button>
+  <a class="btn" href="/studio/" style="text-decoration:none">← Stüdyo</a>
+</header>
+<main>
+  <section class="pane on" id="p-plan">
+    <div class="cols">
+      <div class="card">
+        <h2>Claude'un planı</h2>
+        <p class="hint">Benim hazırladığım plan. Üzerinde istediğin gibi değişiklik yapabilirsin.</p>
+        <textarea id="claudePlan" spellcheck="false"></textarea>
+      </div>
+      <div class="card">
+        <h2>Benim planım / metnim</h2>
+        <p class="hint">Kendi metnini ya da planını buraya yapıştır.</p>
+        <textarea id="myScript" placeholder="Metnini buraya yapıştır…"></textarea>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h2>Değişiklik notları</h2>
+      <p class="hint">Metin ve plan üzerinde yapılacak değişiklikler. Yapıldıkça işaretle.</p>
+      <div class="row"><input type="text" id="chIn" placeholder="Örn. S3'te başlık daha erken gelsin" style="flex:1;min-width:240px"><button class="btn red" id="chAdd">Ekle</button></div>
+      <ul class="changes" id="changes"></ul>
+    </div>
+  </section>
+
+  <section class="pane" id="p-shots">
+    <div class="row" style="margin-bottom:8px">
+      <button class="btn red" id="add">+ Satır ekle</button>
+      <button class="btn" id="fromSegs" title="Mevcut sahnelerden satırları oluşturur (var olanları silmez)">Sahnelerden doldur</button>
+      <span class="sp"></span><span class="tot" id="tot"></span>
+    </div>
+    <div class="tw"><table>
+      <thead><tr><th>Başla</th><th>Bitir</th><th>Söylenen</th><th>Ekranda ne olacak</th><th>Yerleşim</th><th>Geçiş</th><th>Görsel / asset</th><th>Not</th><th>Durum</th><th></th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table></div>
+  </section>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const f2 = (x) => (Math.round(x * 100) / 100).toFixed(2);
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+let P = { claudePlan: '', myScript: '', changes: [], shots: [] }, WORDS = [], SENTS = [], SEGS = [];
+
+// ---- data ----
+async function load() {
+  const [p, segs, txt] = await Promise.all([
+    fetch('/api/plan', { cache: 'no-store' }).then((r) => r.json()).catch(() => null),
+    fetch('/api/segments', { cache: 'no-store' }).then((r) => r.json()).catch(() => ({ segments: [] })),
+    fetch('/work/words.txt', { cache: 'no-store' }).then((r) => r.text()).catch(() => ''),
+  ]);
+  SEGS = segs.segments || [];
+  for (const line of txt.split(/\r?\n/)) {
+    let m = /^\[\s*([\d.]+)-\s*([\d.]+)\]\s*(.*)$/.exec(line);
+    if (m) { SENTS.push({ a: +m[1], b: +m[2], text: m[3] }); continue; }
+    m = /^\s+([\d.]+)\s+(.+)$/.exec(line);
+    if (m) WORDS.push({ t: +m[1], w: m[2].trim() });
+  }
+  if (p && typeof p === 'object') P = { ...P, ...p };
+  if (!P.claudePlan) P.claudePlan = seedPlan();
+  if (!P.shots.length) P.shots = segRows();
+  render();
+}
+let tm = null;
+function save() {
+  $('saved').textContent = 'kaydediliyor…';
+  clearTimeout(tm);
+  tm = setTimeout(async () => {
+    try {
+      const r = await fetch('/api/plan', { method: 'POST', body: JSON.stringify(P) });
+      $('saved').textContent = r.ok ? 'kaydedildi ✓' : 'kaydedilemedi!';
+    } catch { $('saved').textContent = 'kaydedilemedi!'; }
+  }, 450);
+}
+const said = (a, b) => WORDS.filter((w) => w.t >= a - 0.01 && w.t < b).map((w) => w.w).join(' ').replace(/ '/g, "'");
+const segAt = (t) => SEGS.find((s) => t >= s.start && t < s.end);
+function segRows() {
+  return SEGS.map((s) => ({ id: uid(), start: s.start, end: s.end, screen: `${s.id} · ${s.name}`, layout: s.layout || 'full', trans: s.trans || 'blur', assets: '', notes: '', status: /eski/.test(s.status || '') ? 'plan' : 'hazir' }));
+}
+function seedPlan() {
+  const L = ['# AI TESSERACT · Harvard AI reklam — plan', '', 'Konu: Harvard (HBS · Columbia · TUM) çalışması — AI reklamlar, AI gibi görünmediklerinde insan yapımı reklamlara eşit ya da daha iyi performans gösteriyor. Sonrasında 3 adımda "AI gibi görünmeme".', '',
+    'Kurallar: sadece vurucu anahtar kelimeler (altyazıyı sen ekliyorsun) · Türkçe · Oswald + Source Serif 4 · kafa asla kesilmez, kenarlardan uzak · sert kesme yok (blur / flaş) · gerçek veri ve asset · SFX yok.', '', '## Sahneler', ''];
+  for (const s of SEGS) {
+    const sent = SENTS.filter((x) => x.a < s.end - 0.05 && x.b > s.start + 0.05).map((x) => x.text).join(' ');
+    L.push(`### ${s.id} · ${s.name}  (${f2(s.start)}–${f2(s.end)} sn · ${s.layout}${s.trans ? ' · ' + s.trans : ''})`, `> ${sent}`, '- Ekranda: ', '- Not: ', '');
+  }
+  return L.join('\n');
+}
+
+// ---- render ----
+function render() {
+  $('claudePlan').value = P.claudePlan; $('myScript').value = P.myScript;
+  renderChanges(); renderRows();
+}
+function renderChanges() {
+  $('changes').innerHTML = P.changes.map((c) => `<li class="${c.done ? 'done' : ''}" data-id="${c.id}"><input type="checkbox" ${c.done ? 'checked' : ''}><span class="tx">${esc(c.text)}</span><span class="at">${esc(c.at)}</span><button class="x" title="Sil">×</button></li>`).join('')
+    || '<li style="color:var(--sub)">Henüz not yok.</li>';
+}
+const LAY = [['full', 'Tam ekran'], ['split', 'Split (üst grafik / alt yüz)'], ['panel', 'Yüz üstü yazı'], ['face', 'Sadece yüz']];
+const TR = [['blur', 'Blur'], ['flash', 'Flaş'], ['cut', 'Kesme']];
+const ST = [['plan', 'Plan'], ['yapiliyor', 'Yapılıyor'], ['hazir', 'Hazır'], ['revize', 'Revize']];
+const opts = (list, v) => list.map(([k, n]) => `<option value="${k}"${k === v ? ' selected' : ''}>${n}</option>`).join('');
+function renderRows() {
+  P.shots.sort((a, b) => a.start - b.start || a.end - b.end);
+  $('rows').innerHTML = P.shots.map((r) => `<tr class="st-${r.status}" data-id="${r.id}">
+    <td><input type="number" step="0.05" min="0" data-k="start" value="${f2(r.start)}"><div style="margin-top:6px"><button class="go" title="Stüdyoda bu saniyeyi aç">▶ git</button></div></td>
+    <td><input type="number" step="0.05" min="0" data-k="end" value="${f2(r.end)}"><div class="tot" style="margin-top:6px">${f2(Math.max(0, r.end - r.start))} sn</div></td>
+    <td class="c-said"><div class="said">${esc(said(r.start, r.end)) || '—'}</div></td>
+    <td class="c-screen"><textarea data-k="screen" placeholder="Bu aralıkta ekranda ne olacak">${esc(r.screen)}</textarea></td>
+    <td class="c-sel"><select data-k="layout">${opts(LAY, r.layout)}</select></td>
+    <td class="c-sel"><select data-k="trans">${opts(TR, r.trans)}</select></td>
+    <td class="c-assets"><textarea data-k="assets" placeholder="Link, dosya yolu, görsel fikri">${esc(r.assets)}</textarea></td>
+    <td class="c-notes"><textarea data-k="notes" placeholder="Not">${esc(r.notes)}</textarea></td>
+    <td class="c-sel"><select data-k="status">${opts(ST, r.status)}</select></td>
+    <td><button class="x" title="Satırı sil">×</button></td></tr>`).join('');
+  const total = P.shots.reduce((a, r) => a + Math.max(0, r.end - r.start), 0);
+  $('tot').textContent = `${P.shots.length} satır · ${f2(total)} sn planlandı · video ${f2(SEGS.length ? Math.max(...SEGS.map((s) => s.end)) : 0)} sn`;
+}
+
+// ---- events ----
+document.querySelectorAll('.tabs button').forEach((b) => (b.onclick = () => {
+  document.querySelectorAll('.tabs button').forEach((x) => x.classList.toggle('on', x === b));
+  document.querySelectorAll('.pane').forEach((p) => p.classList.toggle('on', p.id === 'p-' + b.dataset.t));
+  try { localStorage.setItem('planTab', b.dataset.t); } catch {}
+}));
+try { const t = localStorage.getItem('planTab'); if (t) document.querySelector(`.tabs button[data-t="${t}"]`)?.click(); } catch {}
+$('claudePlan').oninput = (e) => { P.claudePlan = e.target.value; save(); };
+$('myScript').oninput = (e) => { P.myScript = e.target.value; save(); };
+const addChange = () => { const v = $('chIn').value.trim(); if (!v) return; P.changes.push({ id: uid(), text: v, done: false, at: new Date().toLocaleString('tr-TR', { dateStyle: 'short', timeStyle: 'short' }) }); $('chIn').value = ''; renderChanges(); save(); };
+$('chAdd').onclick = addChange; $('chIn').onkeydown = (e) => { if (e.key === 'Enter') addChange(); };
+$('changes').onclick = (e) => {
+  const li = e.target.closest('li[data-id]'); if (!li) return; const c = P.changes.find((x) => x.id === li.dataset.id);
+  if (e.target.matches('input[type=checkbox]')) { c.done = e.target.checked; renderChanges(); save(); }
+  if (e.target.matches('.x')) { P.changes = P.changes.filter((x) => x !== c); renderChanges(); save(); }
+};
+const rowOf = (el) => P.shots.find((r) => r.id === el.closest('tr').dataset.id);
+$('rows').addEventListener('input', (e) => {
+  const k = e.target.dataset.k; if (!k) return; const r = rowOf(e.target);
+  r[k] = e.target.type === 'number' ? Math.max(0, +e.target.value || 0) : e.target.value; save();
+});
+$('rows').addEventListener('change', (e) => { const k = e.target.dataset.k; if (k === 'start' || k === 'end' || k === 'status') renderRows(); });
+$('rows').addEventListener('click', (e) => {
+  if (e.target.matches('.x')) { const r = rowOf(e.target); P.shots = P.shots.filter((x) => x !== r); renderRows(); save(); }
+  if (e.target.matches('.go')) window.open('/studio/#t=' + rowOf(e.target).start, 'editsync-studio');
+});
+$('add').onclick = () => {
+  const last = P.shots[P.shots.length - 1], a = last ? last.end : 0;
+  const s = segAt(a);
+  P.shots.push({ id: uid(), start: a, end: a + 2, screen: '', layout: (s && s.layout) || 'full', trans: 'blur', assets: '', notes: '', status: 'plan' });
+  renderRows(); save();
+};
+$('fromSegs').onclick = () => {
+  const have = new Set(P.shots.map((r) => f2(r.start) + '-' + f2(r.end)));
+  segRows().forEach((r) => { if (!have.has(f2(r.start) + '-' + f2(r.end))) P.shots.push(r); });
+  renderRows(); save();
+};
+$('md').onclick = () => {
+  const L = [P.claudePlan, '', '---', '', '# Benim planım / metnim', '', P.myScript || '—', '', '# Değişiklik notları', '', ...P.changes.map((c) => `- [${c.done ? 'x' : ' '}] ${c.text}`), '',
+    '# Saniye saniye', '', '| Başla | Bitir | Söylenen | Ekranda | Yerleşim | Geçiş | Asset | Not | Durum |', '|---|---|---|---|---|---|---|---|---|',
+    ...P.shots.map((r) => `| ${f2(r.start)} | ${f2(r.end)} | ${said(r.start, r.end)} | ${r.screen} | ${r.layout} | ${r.trans} | ${r.assets} | ${r.notes} | ${r.status} |`.replace(/\n/g, ' '))];
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([L.join('\n')], { type: 'text/markdown' })); a.download = 'plan.md'; a.click();
+};
+load();
+</script>
+</body>
+</html>
