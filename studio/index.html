@@ -29,6 +29,9 @@ h1{font-size:18px;margin:0}h1 b{color:var(--red)}
 textarea{width:100%;min-height:70px;background:#0f0e0e;color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px;font:inherit;resize:vertical}
 .nlist{max-height:180px;overflow:auto;display:flex;flex-direction:column;gap:6px}
 .note{padding:6px 8px;border-radius:8px;background:#1a1717;font-size:13px}.note .m{color:var(--sub);font-size:11px}.note.done{opacity:.45;text-decoration:line-through}
+/* kareli not: solda yakalanan kare (tıkla = o saniyeye git), sağda saniye + yorum */
+.note.shot{display:flex;gap:8px;align-items:flex-start}.note.shot img{width:54px;height:96px;object-fit:cover;border-radius:6px;border:1px solid var(--line);cursor:pointer;flex:none}
+.cap{display:flex;gap:8px;align-items:center;padding:6px;border:1px dashed #ffc53d;border-radius:8px}.cap img{width:45px;height:80px;object-fit:cover;border-radius:5px}.cap b{color:#ffc53d}.cap[hidden]{display:none}
 .hint{color:var(--sub);font-size:12px}
 .flash{color:#7CFF9A;font-size:12px;min-height:16px}
 /* tabs + panes (notes / edit / subtitles) */
@@ -215,8 +218,9 @@ body.embed .dock,body.embed .splitter{display:none!important}body.embed .app{gri
     <div class="panes">
     <div class="notes pane" id="tab-notes">
       <div><b>Not</b> <span class="hint">— şu anki saniyeye ve segmente kaydedilir</span></div>
+      <div class="cap" id="ncap" hidden><img id="ncapImg" alt=""><div><b id="ncapT"></b><div class="hint">Bu kareye not yazılıyor</div></div><button id="ncapX" title="Kareyi bırak" style="margin-left:auto">×</button></div>
       <textarea id="ntext" placeholder="Örn: 7.074 kartı daha büyük olsun / bu yazı 0.3 sn önce gelsin"></textarea>
-      <div style="display:flex;gap:8px;align-items:center"><button id="nadd">Not ekle</button><span class="flash" id="msg"></span></div>
+      <div style="display:flex;gap:8px;align-items:center"><button id="nshot" title="Videoyu durdurur; o anki kare ve saniye nota eklenir (Y)">📸 Kareyi Nota Al</button><button id="nadd">Not ekle</button><span class="flash" id="msg"></span></div>
       <div class="nlist" id="nlist"></div>
     </div>
     <div class="pane" id="tab-edit" hidden>
@@ -453,13 +457,52 @@ async function hot() {
 
 async function loadNotes() {
   const notes = await (await fetch('/api/notes', { cache: 'no-store' })).json();
-  $('nlist').innerHTML = notes.slice().reverse().map((n) => `<div class="note${n.done ? ' done' : ''}"><div class="m">${n.seg} · ${fmt(n.t)} sn</div>${n.text.replace(/</g, '&lt;')}</div>`).join('') || '<span class="hint">Henüz not yok.</span>';
+  $('nlist').innerHTML = notes.slice().reverse().map((n) => {
+    const body = `<div class="m">${n.seg} · ${fmt(n.t)} sn</div>${n.text.replace(/</g, '&lt;')}`;
+    return n.img ? `<div class="note shot${n.done ? ' done' : ''}"><img src="${n.img}" data-t="${n.t}" title="${fmt(n.t)} sn'ye git" alt=""><div>${body}</div></div>` : `<div class="note${n.done ? ' done' : ''}">${body}</div>`;
+  }).join('') || '<span class="hint">Henüz not yok.</span>';
+  $('nlist').querySelectorAll('img[data-t]').forEach((im) => (im.onclick = () => { v.pause(); v.currentTime = Number(im.dataset.t) + 0.001; }));
 }
+// 📸 Kareyi Nota Al: video durur; sahnede görünen her şey (kafa videosu + üstteki sahne sayfaları, şeffaflık/blur dahil)
+// tek bir 9:16 kareye birleştirilir. Not o saniyeye ve bu kareye bağlanır; "Not ekle" ile kare work/uploads'a kaydedilir.
+let pendingShot = null;
+async function grabStage() {
+  const W = 540, H = Math.round(W * stage.clientHeight / stage.clientWidth), c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d'), k = W / stage.clientWidth, t = v.currentTime; g.fillStyle = '#000'; g.fillRect(0, 0, W, H);
+  const vc = $('vcan'); if (vc && vc.style.display !== 'none') g.drawImage(vc, parseFloat(vc.style.left) * k, parseFloat(vc.style.top) * k, parseFloat(vc.style.width) * k, parseFloat(vc.style.height) * k);
+  for (const [id, f] of Object.entries(frames).sort((a, b) => (Number(a[1].style.zIndex) || 0) - (Number(b[1].style.zIndex) || 0))) {
+    if (f.style.visibility !== 'visible') continue;
+    try {
+      const s = SEGS.find((q) => q.id === id); syncFrame(f, s, t); if (f.__p && f.__p.then) await f.__p;
+      // aynı görev içinde oku: WebGL çizim tamponu silinmeden önce
+      const cv = [...f.contentDocument.querySelectorAll('canvas')].sort((a, b) => b.width * b.height - a.width * a.height)[0]; if (!cv) continue;
+      const r = f.getBoundingClientRect(), sr = stage.getBoundingClientRect();
+      g.globalAlpha = Number(f.style.opacity || 1); g.filter = f.style.filter && f.style.filter !== 'none' ? f.style.filter : 'none';
+      g.drawImage(cv, (r.left - sr.left) * k, (r.top - sr.top) * k, r.width * k, r.height * k); g.globalAlpha = 1; g.filter = 'none';
+    } catch (e) { console.warn('kare alınamadı', id, e); }
+  }
+  return c;
+}
+async function takeShot() {
+  v.pause(); showTab('notes');
+  const t = v.currentTime, s = segAt(t), c = await grabStage();
+  pendingShot = { t, seg: s ? s.id : 'yüz', blob: await new Promise((r) => c.toBlob(r, 'image/jpeg', 0.85)) };
+  $('ncapImg').src = c.toDataURL('image/jpeg', 0.6); $('ncapT').textContent = `${pendingShot.seg} · ${fmt(t)} sn`; $('ncap').hidden = false;
+  $('ntext').focus(); flash('Kare alındı · yorumunu yaz');
+}
+$('nshot').onclick = takeShot;
+$('ncapX').onclick = () => { pendingShot = null; $('ncap').hidden = true; };
 async function addNote() {
   const text = $('ntext').value.trim(); if (!text) return;
-  const s = segAt(v.currentTime);
-  await fetch('/api/note', { method: 'POST', body: JSON.stringify({ seg: s ? s.id : 'yüz', t: v.currentTime, text }) });
-  $('ntext').value = ''; flash('Not kaydedildi'); loadNotes();
+  let t = v.currentTime, s = segAt(t), seg = s ? s.id : 'yüz', img = null;
+  if (pendingShot) {
+    t = pendingShot.t; seg = pendingShot.seg;
+    const up = await (await fetch('/api/upload?name=' + encodeURIComponent(`not_${t.toFixed(2).replace('.', '-')}s.jpg`), { method: 'POST', body: pendingShot.blob })).json();
+    if (up.ok) img = up.url; else flash('Kare kaydedilemedi: ' + up.error);
+  }
+  await fetch('/api/note', { method: 'POST', body: JSON.stringify({ seg, t, text, img }) });
+  pendingShot = null; $('ncap').hidden = true;
+  $('ntext').value = ''; flash(img ? 'Not + kare kaydedildi' : 'Not kaydedildi'); loadNotes();
 }
 function flash(m) { $('msg').textContent = m; clearTimeout(flash.t); flash.t = setTimeout(() => ($('msg').textContent = ''), 2500); }
 function showTab(n) {
@@ -488,6 +531,7 @@ addEventListener('keydown', (e) => {
   if (e.code === 'Space') { e.preventDefault(); $('play').click(); }
   if (e.key === 'ArrowLeft') step(-1 / 30); if (e.key === 'ArrowRight') step(1 / 30);
   if (e.key === 'n' || e.key === 'N') { e.preventDefault(); v.pause(); showTab('notes'); $('ntext').focus(); }
+  if ((e.key === 'y' || e.key === 'Y') && !e.ctrlKey && !e.metaKey) { e.preventDefault(); takeShot(); }
   if ((e.key === 'e' || e.key === 'E') && window.ED) { e.preventDefault(); ED.toggle(); }
   if (e.key === 'Escape' && window.ED) ED.select(null);
   if ((e.key === 't' || e.key === 'T') && !e.ctrlKey && !e.metaKey) { if (window.LAYOUT) LAYOUT.toggle('tl'); else document.body.classList.toggle('tlmin'); }

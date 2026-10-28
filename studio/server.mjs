@@ -4,7 +4,7 @@
 //   GET  /api/segments       studio/segments.json
 //   GET  /api/mtime?f=path   last-modified ms of a file under motion/ (hot reload)
 //   GET  /api/notes          work/notes.json
-//   POST /api/note           {seg, t, text} -> appended to work/notes.json
+//   POST /api/note           {seg, t, text, img?} -> appended to work/notes.json (img: /work/uploads/... captured frame)
 //   GET  /api/overrides      work/overrides.json  { "<dist file>": { "<selector>": {text,translate,scale,color,font,src} } }
 //   POST /api/overrides      whole object, or {"__patch": {file: {sel: {...}|null}|null}} (null deletes)
 //   POST /api/upload?name=   raw body -> work/uploads/<stamp>-<name>, returns {url}
@@ -82,7 +82,8 @@ http.createServer((req, res) => {
     req.on('end', () => {
       try {
         const n = JSON.parse(body), notes = readNotes();
-        notes.push({ seg: String(n.seg || ''), t: Number(n.t) || 0, text: String(n.text || '').slice(0, 2000), at: new Date().toISOString(), done: false });
+        const img = typeof n.img === 'string' && /^\/work\/uploads\/[\w.\-]+$/.test(n.img) ? n.img : undefined;   // 📸 Kareyi Nota Al ile yakalanan kare
+        notes.push({ seg: String(n.seg || ''), t: Number(n.t) || 0, text: String(n.text || '').slice(0, 2000), img, at: new Date().toISOString(), done: false });
         fs.mkdirSync(path.dirname(NOTES), { recursive: true }); fs.writeFileSync(NOTES, JSON.stringify(notes, null, 2));
         json(res, { ok: true, count: notes.length });
       } catch (e) { json(res, { ok: false, error: e.message }, 400); }
