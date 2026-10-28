@@ -384,7 +384,10 @@ $('sGroup').onchange = (e) => { SUB.group = +e.target.value; dirty = true; last 
 function cards() {
   $('sPresets').innerHTML = PRESETS.map(([id, name]) => { const ws = name.split(' '); return `<button class="pcard${SUB.preset === id ? ' on' : ''}" data-p="${id}" title="${esc(name)}">${capHTML(id, ws, Math.min(1, ws.length - 1))}</button>`; }).join('');
 }
-$('sPresets').addEventListener('click', (e) => { const b = e.target.closest('.pcard'); if (!b) return; tgt(true).preset = b.dataset.p; changed(); });
+$('sPresets').addEventListener('click', (e) => { const b = e.target.closest('.pcard'); if (!b) return; tgt(true).preset = b.dataset.p;
+  // koyu şeffaf kutu tek kelimeyle boş kalır: seçilince öbekleme açılır (en fazla 3 kelime, noktalama/duraklamada bölünür)
+  if (b.dataset.p === 'dpill' && applyAll() && !SUB.merge) { SUB.merge = true; SUB.group = SUB.group || 3; dirty = true; chipRows(); }
+  changed(); });
 $('sSize').oninput = (e) => { tgt(true).size = +e.target.value; changed(); };
 
 const ts = (x) => { const ms = Math.round(x * 1000), p = (n, l = 2) => String(n).padStart(l, '0'); return `${p(Math.floor(ms / 3600000))}:${p(Math.floor(ms / 60000) % 60)}:${p(Math.floor(ms / 1000) % 60)},${p(ms % 1000, 3)}`; };

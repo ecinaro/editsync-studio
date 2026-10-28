@@ -31,7 +31,7 @@ textarea{width:100%;min-height:70px;background:#0f0e0e;color:var(--ink);border:1
 .note{padding:6px 8px;border-radius:8px;background:#1a1717;font-size:13px}.note .m{color:var(--sub);font-size:11px}.note.done{opacity:.45;text-decoration:line-through}
 /* kareli not: solda yakalanan kare (tıkla = o saniyeye git), sağda saniye + yorum */
 .note.shot{display:flex;gap:8px;align-items:flex-start}.note.shot img{width:54px;height:96px;object-fit:cover;border-radius:6px;border:1px solid var(--line);cursor:pointer;flex:none}
-.cap{display:flex;gap:8px;align-items:center;padding:6px;border:1px dashed #ffc53d;border-radius:8px}.cap img{width:45px;height:80px;object-fit:cover;border-radius:5px}.cap b{color:#ffc53d}.cap[hidden]{display:none}
+.ncap{display:flex;gap:8px;align-items:center;padding:6px;border:1px dashed #ffc53d;border-radius:8px}.ncap img{width:45px;height:80px;object-fit:cover;border-radius:5px}.ncap b{color:#ffc53d}.ncap[hidden]{display:none}
 .hint{color:var(--sub);font-size:12px}
 .flash{color:#7CFF9A;font-size:12px;min-height:16px}
 /* tabs + panes (notes / edit / subtitles) */
@@ -218,7 +218,7 @@ body.embed .dock,body.embed .splitter{display:none!important}body.embed .app{gri
     <div class="panes">
     <div class="notes pane" id="tab-notes">
       <div><b>Not</b> <span class="hint">— şu anki saniyeye ve segmente kaydedilir</span></div>
-      <div class="cap" id="ncap" hidden><img id="ncapImg" alt=""><div><b id="ncapT"></b><div class="hint">Bu kareye not yazılıyor</div></div><button id="ncapX" title="Kareyi bırak" style="margin-left:auto">×</button></div>
+      <div class="ncap" id="ncap" hidden><img id="ncapImg" alt=""><div><b id="ncapT"></b><div class="hint">Bu kareye not yazılıyor</div></div><button id="ncapX" title="Kareyi bırak" style="margin-left:auto">×</button></div>
       <textarea id="ntext" placeholder="Örn: 7.074 kartı daha büyük olsun / bu yazı 0.3 sn önce gelsin"></textarea>
       <div style="display:flex;gap:8px;align-items:center"><button id="nshot" title="Videoyu durdurur; o anki kare ve saniye nota eklenir (Y)">📸 Kareyi Nota Al</button><button id="nadd">Not ekle</button><span class="flash" id="msg"></span></div>
       <div class="nlist" id="nlist"></div>
