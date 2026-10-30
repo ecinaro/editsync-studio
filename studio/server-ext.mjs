@@ -4,7 +4,7 @@
 //   POST     /api/variants               variant {id, ...} -> work/variants/<id>.json   ·  {id, delete:true} removes it
 //   GET      /api/heads                  head videos usable in a variant (work/head_proxy.mp4 + work/heads/*.mp4)
 //   GET      /api/browse?dir=            read-only folder listing (dirs + video files) for picking a source
-//   POST     /api/heads/import           {path} -> ffmpeg proxy job (1080x1920 H.264, audio + length of head_proxy)
+//   POST     /api/heads/import           {path} -> ffmpeg proxy job (frame size H.264, default 1080x1920; audio + length of head_proxy)
 //   POST     /api/heads/upload?name=     raw body (streamed to disk, no size cap) -> same proxy job
 //   GET      /api/jobs                   running / finished proxy jobs
 //   GET      /api/waveform               peaks of the head_proxy audio (cached in work/waveform.json)
@@ -21,6 +21,8 @@ import { makeMusic } from './music-ext.mjs'; // music library + export soundtrac
 export function makeExt(ROOT, { json, readJ, writeJ }) {
   const W = (...p) => path.join(ROOT, 'work', ...p);
   const HEAD = W('head_proxy.mp4');
+  // output frame from segments.json "frame": [w, h] (e.g. [1920, 1080] for 16:9); default vertical 1080x1920
+  const FRAME = () => { const f = (readJ(path.join(ROOT, 'studio', 'segments.json'), {}) || {}).frame; return Array.isArray(f) && f.length === 2 ? f.map(Number) : [1080, 1920]; };
   const VIDEO_EXT = /\.(mov|mp4|m4v|mkv|webm|avi)$/i;
   const safeName = (s) => String(s || '').replace(/ı/g, 'i').replace(/İ/g, 'I').normalize('NFKD').replace(/[^\w.\-]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 80) || 'video';
   const jobs = [];
@@ -42,7 +44,7 @@ export function makeExt(ROOT, { json, readJ, writeJ }) {
     jobs.unshift(job); jobs.length = Math.min(jobs.length, 20);
     // picture from the new file, sound + length from the original head proxy so everything stays in sync
     const args = ['-hide_banner', '-y', '-i', src, '-i', HEAD, '-map', '0:v:0', '-map', '1:a:0',
-      '-vf', 'scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,fps=30,format=yuv420p',
+      '-vf', `scale=${FRAME()[0]}:${FRAME()[1]}:force_original_aspect_ratio=increase,crop=${FRAME()[0]}:${FRAME()[1]},fps=30,format=yuv420p`,
       '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-g', '15', '-keyint_min', '15', '-c:a', 'copy', '-t', String(headDur), '-movflags', '+faststart',
       '-progress', 'pipe:1', '-nostats', out + '.part.mp4'];
     const p = spawn('ffmpeg', args); let err = '';
@@ -120,7 +122,7 @@ export function makeExt(ROOT, { json, readJ, writeJ }) {
     return browserP;
   }
   async function still(port, variant, t) {
-    const b = await getBrowser(), page = await b.newPage({ viewport: { width: 1080, height: 1920 } });
+    const [fw, fh] = FRAME(), b = await getBrowser(), page = await b.newPage({ viewport: { width: fw, height: fh } });
     try {
       await page.goto(`http://localhost:${port}/studio/?embed=1&variant=${encodeURIComponent(variant)}&still=${t}`);
       await page.waitForFunction(() => window.__stillReady === true, null, { timeout: 30000 });
@@ -150,11 +152,11 @@ export function makeExt(ROOT, { json, readJ, writeJ }) {
     // video speed (work/timing.json .speed) changes the OUTPUT: output frame k shows source time a + k/fps*speed
     const speed = Math.max(0.5, Math.min(2, Number((readJ(W('timing.json'), {}) || {}).speed) || 1)), rg = job.range && job.range.length === 2 ? [Math.max(0, +job.range[0]), Math.min(headDur, +job.range[1])] : [0, headDur];
     job.speed = speed;
-    const fps = job.fps || 30, N = Math.round(((rg[1] - rg[0]) / speed) * fps), scale = job.scale, W2 = Math.round(1080 * scale / 2) * 2, H2 = Math.round(1920 * scale / 2) * 2;
+    const fps = job.fps || 30, N = Math.round(((rg[1] - rg[0]) / speed) * fps), scale = job.scale, [fw, fh] = FRAME(), W2 = Math.round(fw * scale / 2) * 2, H2 = Math.round(fh * scale / 2) * 2;
     const tmp = W('exports', '_tmp_' + job.id); fs.mkdirSync(tmp, { recursive: true });
     job.total = N; job.done = 0; job.status = 'hazırlanıyor'; job.t0 = Date.now();
     const b = await getBrowser();
-    const ctx = await b.newContext({ viewport: { width: 1080, height: 1920 }, deviceScaleFactor: scale });
+    const ctx = await b.newContext({ viewport: { width: fw, height: fh }, deviceScaleFactor: scale });
     job.ctx = ctx; // cancel closes it, which unblocks any pending page call
     if (job.cancel) { await ctx.close().catch(() => {}); throw new Error('iptal edildi'); }
     // profiled: the frame grab dominates (~180-260 ms with page.screenshot vs ~100 ms with CDP optimizeForSpeed,

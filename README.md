@@ -58,6 +58,16 @@ window.__bm = {
 
 Örnek: [`dist/example.html`](dist/example.html).
 
+### Kare formatı (dikey / yatay)
+
+Varsayılan kare dikey **1080×1920**. Yatay (16:9) bir video için `studio/segments.json`'a `frame` ekle:
+
+```json
+{ "video": "/work/head_proxy.mp4", "duration": 90, "frame": [1920, 1080], "segments": [ … ] }
+```
+
+Önizleme oranı, kafa videosu proxy'si, kare PNG ve MP4 dışa aktarma (1920×1080 / 2560×1440 / 3840×2160) bu boyutu kullanır. Yatay karede Reels/TikTok telefon katmanı, güvenli alan ve platform lint'i kapalıdır; bunlar dikey telefon düzeni içindir. Boyutu verilmeyen sahne sayfaları yatayda `[1920, 1080]` kabul edilir.
+
 ## Altyazılar
 
 - **Öbekleme:** kelimeler noktalama ve konuşmadaki duraklamalara göre 1–3 kelimelik doğal öbekler halinde gelir ("ve, ama" yeni öbeği açar; "ki, de, ile" öbeğe başlamaz). "en fazla N kelime" ile sınır değişir.

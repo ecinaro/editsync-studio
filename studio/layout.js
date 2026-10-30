@@ -53,7 +53,7 @@ function apply() {
   fit(); dispatchEvent(new Event('resize')); // timeline refits to its new width
 }
 
-// ---- preview: as big as the centre allows (9:16) ----
+// ---- preview: as big as the centre allows (9:16, or the frame from segments.json) ----
 function fit() {
   if (document.body.classList.contains('embed')) { stage.style.height = ''; return; }
   // everything in the column except the stage (control rows, hints) must stay visible
@@ -62,7 +62,8 @@ function fit() {
     .reduce((a, c) => { const m = getComputedStyle(c); return a + c.offsetHeight + parseFloat(m.marginTop) + parseFloat(m.marginBottom); }, 0)
     + (parseFloat(getComputedStyle(left).rowGap) || 0) * Math.max(0, left.children.length - 1);
   const H = center.clientHeight - bars - 12, W = center.clientWidth - 8;
-  stage.style.height = Math.max(160, Math.floor(Math.min(H, (W * 16) / 9))) + 'px';
+  const ar = window.EDS_FRAME ? EDS_FRAME[0] / EDS_FRAME[1] : 9 / 16;
+  stage.style.height = Math.max(160, Math.floor(Math.min(H, W / ar))) + 'px';
 }
 new ResizeObserver(() => fit()).observe(center);
 addEventListener('resize', () => requestAnimationFrame(fit));

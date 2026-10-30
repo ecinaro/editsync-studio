@@ -7,7 +7,7 @@
 .wrap{display:flex;flex-direction:column;height:100%;padding:12px;gap:10px}
 .pair{flex:1;display:flex;gap:14px;justify-content:center;min-height:0}
 .side{display:flex;flex-direction:column;align-items:center;gap:6px;min-height:0}
-.side iframe{border:0;height:calc(100vh - 120px);aspect-ratio:9/16;border-radius:14px;box-shadow:0 0 0 1px var(--line);background:#000}
+.side iframe{border:0;height:calc(100vh - 120px);aspect-ratio:var(--ar,9/16);border-radius:14px;box-shadow:0 0 0 1px var(--line);background:#000}
 .lab{display:flex;gap:8px;align-items:center}.lab b{background:var(--ink);color:var(--bg);border-radius:5px;padding:0 6px;font-size:12px}
 .bar{display:flex;gap:10px;align-items:center;max-width:900px;width:100%;margin:0 auto}
 button,select{background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font:inherit;cursor:pointer}
@@ -59,4 +59,5 @@ addEventListener('keydown', (e) => {
   requestAnimationFrame(sync);
 })();
 </script>
+<script>fetch('/api/segments', { cache: 'no-store' }).then((r) => r.json()).then((d) => { if (Array.isArray(d.frame)) document.documentElement.style.setProperty('--ar', d.frame[0] + ' / ' + d.frame[1]); }).catch(() => {});</script>
 </body></html>

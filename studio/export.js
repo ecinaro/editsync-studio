@@ -29,12 +29,15 @@ function open() {
   const L = (window.VARIANTS && VARIANTS.list) || [], cur = window.VARIANTS && VARIANTS.current;
   $('xpVar').innerHTML = L.map((x) => `<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('') + (L.length > 1 ? `<option value="*">Tüm varyantlar (${L.length} video, sırayla)</option>` : '');
   if (cur) $('xpVar').value = cur.id;
+  const tag = { 1: '', 1.3333: ' (2K)', 2: ' (4K, yavaş)' };
+  [...$('xpRes').options].forEach((o) => (o.textContent = resOf(+o.value).replace('x', ' × ') + (tag[o.value] ?? '')));
   $('xpDir').value = EDS_lastSaveDir(); defName(); dlg.hidden = false; poll();
 }
 $('xpClose').onclick = () => (dlg.hidden = true);
 dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.hidden = true; });
-const RES = { 1: '1080x1920', 1.3333: '1440x2560', 2: '2160x3840' };
-const nameFor = (x) => EDS_fileName(`${x.name}_${RES[$('xpRes').value]}_${EDS_stamp()}.mp4`);
+// output size = frame (segments.json, default 1080x1920) x scale option
+const resOf = (k) => { const [w, h] = window.EDS_FRAME || [1080, 1920]; return `${Math.round((w * k) / 2) * 2}x${Math.round((h * k) / 2) * 2}`; };
+const nameFor = (x) => EDS_fileName(`${x.name}_${resOf(+$('xpRes').value)}_${EDS_stamp()}.mp4`);
 function defName() {
   const L = (window.VARIANTS && VARIANTS.list) || [], x = L.find((q) => q.id === $('xpVar').value);
   $('xpName').value = x ? nameFor(x) : '(her varyant kendi adıyla)'; $('xpName').disabled = !x;

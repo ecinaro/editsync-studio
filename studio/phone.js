@@ -66,7 +66,7 @@ const TIKTOK = `${grad}<rect width="1080" height="280" fill="url(#gt)"/><rect y=
 
 const el = $('phone');
 function draw() {
-  const k = $('phoneK').value, on = $('phoneT').checked;
+  const k = $('phoneK').value, on = $('phoneT').checked && !window.EDS_LAND; // phone UI only makes sense on a vertical frame
   el.style.display = on ? 'block' : 'none';
   if (on) el.innerHTML = `<svg viewBox="0 0 1080 1920" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">${k === 'tiktok' ? TIKTOK : REELS}</svg>`;
   try { localStorage.setItem('edPhone', JSON.stringify({ on, k })); } catch {}

@@ -6,7 +6,7 @@
 *{box-sizing:border-box}html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:14px/1.4 system-ui,-apple-system,Segoe UI,sans-serif}
 .app{display:grid;grid-template-columns:auto minmax(300px,1fr);grid-template-rows:minmax(0,1fr) auto;gap:12px 20px;height:100%;padding:16px}
 .left{display:flex;flex-direction:column;align-items:center;gap:10px;min-height:0}
-.stage{position:relative;height:calc(100vh - 360px);min-height:160px;aspect-ratio:9/16;background:#000;overflow:hidden;border-radius:14px;box-shadow:0 0 0 1px var(--line)}
+.stage{position:relative;height:calc(100vh - 360px);min-height:160px;aspect-ratio:var(--ar,9/16);background:#000;overflow:hidden;border-radius:14px;box-shadow:0 0 0 1px var(--line)}
 .vwrap{position:absolute;left:0;top:0;width:100%;height:100%;overflow:hidden}
 .vwrap video{position:absolute;left:0;top:0;width:100%;height:100%;object-fit:cover;display:block}
 .vwrap canvas{position:absolute;left:0;top:50%;width:100%;height:50%;display:none}
@@ -179,7 +179,7 @@ body.tlmin .tlscroll{display:none}body.tlmin .stage{height:calc(100vh - 220px)}
 .dz [data-k=L]{left:10px;top:10px;bottom:28%;width:17%}.dz [data-k=R]{right:10px;top:10px;bottom:28%;width:17%}.dz [data-k=B]{left:10px;right:10px;bottom:10px;height:23%}
 .dz .ins{position:fixed;display:none;background:var(--red);border-radius:2px}
 body.resizing,body.resizing *{user-select:none!important}
-body.embed .dock,body.embed .splitter{display:none!important}body.embed .app{grid-template-columns:0 0 1fr 0 0;grid-template-rows:1fr 0 0;padding:0}body.embed .center{padding:0}</style></head>
+body.embed .dock,body.embed .splitter{display:none!important}body.embed .app{grid-template-columns:0 0 1fr 0 0;grid-template-rows:1fr 0 0;padding:0}body.embed .center{padding:0}body.land #safe{display:none!important}</style></head>
 <body>
 <div class="app">
   <div class="left">
@@ -335,6 +335,13 @@ const segAt = (t) => SEGS.find((s) => t >= s.start && t < endOf(s)) || null;
 
 async function init() {
   DATA = await (await fetch('/api/segments', { cache: 'no-store' })).json();
+  // kare formatı: segments.json "frame" ([1920, 1080] = yatay 16:9). Yoksa dikey 1080×1920.
+  window.EDS_FRAME = Array.isArray(DATA.frame) && DATA.frame.length === 2 ? DATA.frame.map(Number) : [1080, 1920];
+  window.EDS_LAND = EDS_FRAME[0] > EDS_FRAME[1];
+  document.documentElement.style.setProperty('--ar', `${EDS_FRAME[0]} / ${EDS_FRAME[1]}`);
+  document.body.classList.toggle('land', EDS_LAND);
+  if (EDS_LAND && $('phoneT') && $('phoneT').checked) { $('phoneT').checked = false; $('phoneT').dispatchEvent(new Event('change')); } // Reels/TikTok katmanı dikey içindir
+  dispatchEvent(new Event('resize'));
   SEGS = DATA.segments; if (!v.getAttribute('src')) v.src = DATA.video; $('scrub').max = DATA.duration; // a variant may have set its head already
   // work/timing.json (timeline edits) overrides start / end / transition without touching segments.json
   let T = {}; try { T = (await (await fetch('/api/store/timing', { cache: 'no-store' })).json()).segs || {}; } catch {}
@@ -356,7 +363,7 @@ function frameFor(s) {
   frames[s.id] = f; return f;
 }
 function layoutFrame(f, s) {
-  const split = s.layout === 'split', [W, H] = s.size || [1440, split ? 1280 : 2560], k = stage.clientWidth / W; // s.size: sayfanın kendi tuval boyutu (simple stili 1080×1920)
+  const split = s.layout === 'split', [W, H] = s.size || (window.EDS_LAND ? [1920, 1080] : [1440, split ? 1280 : 2560]), k = stage.clientWidth / W; // s.size: sayfanın kendi tuval boyutu (simple stili 1080×1920)
   f.style.width = W + 'px'; f.style.height = H + 'px';
   f.style.transform = `scale(${k})`;
 }
@@ -413,7 +420,7 @@ function tick() {
   $('flash').style.opacity = (0.92 * fl).toFixed(3);
   let rx = 0, ry = 0, rw = W, rh = H;
   if (q > 0) {
-    const top = s.faceTop ?? 0.21, frac = s.faceFrac ?? 0.72, hv = (H / 2) / frac, wv = hv * 9 / 16;
+    const top = s.faceTop ?? 0.21, frac = s.faceFrac ?? 0.72, hv = (H / 2) / frac, wv = hv * (window.EDS_FRAME ? EDS_FRAME[0] / EDS_FRAME[1] : 9 / 16);
     const sx = (W - wv) / 2, sy = H / 2 - top * hv;
     rx = sx * q; ry = sy * q; rw = W + (wv - W) * q; rh = H + (hv - H) * q;
     // blurred fill = same footage scaled to cover, aligned on the face centre so it continues the sharp image

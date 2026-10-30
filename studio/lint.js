@@ -15,6 +15,7 @@ const visible = (el, w) => { let o = 1; for (let n = el; n && n.nodeType === 1; 
 const hit = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 
 function scan() { // problems in the frames visible right now
+  if (window.EDS_LAND) return []; // safe area and platform zones are for vertical phone layouts
   const out = [], zones = $('phoneT').checked ? ZONES[$('phoneK').value] || [] : [];
   for (const s of SEGS) {
     const f = frames[s.id]; if (!f || f.style.visibility !== 'visible' || +f.style.opacity < 0.5) continue;
